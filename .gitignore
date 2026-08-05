@@ -39,3 +39,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# IDE
+# Android Studio / IntelliJ 的本機設定。內容（gradle.xml、compiler.xml）
+# 還指向已經移除的 Gradle 專案結構，而且每台機器各自不同，不該進版控。
+.idea/
+
