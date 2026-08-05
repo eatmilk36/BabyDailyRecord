@@ -20,6 +20,7 @@ import {
   useRecentEvents,
 } from '../../db/queries';
 import { formatBabyAge, greeting } from '../../lib/time';
+import { useActionLock } from '../../lib/useActionLock';
 import { useNow } from '../../lib/useNow';
 import { fontSize, spacing } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
@@ -41,6 +42,8 @@ export default function Home() {
   const now = useNow(30_000);
   const { babies, loaded: babiesLoaded } = useBabies();
   const { events } = useRecentEvents();
+  // 所有寫入動作共用一把鎖，防止「覺得沒反應所以再按一次」產生重複紀錄
+  const lock = useActionLock();
 
   // 還沒建立寶寶 → 去 onboarding
   if (babiesLoaded && babies.length === 0) return <Redirect href="/onboarding" />;
@@ -61,39 +64,51 @@ export default function Home() {
       ? actives[0].sessionId
       : undefined;
 
-  async function handleFeed(babyId: string) {
-    const id = await logFeed(babyId);
-    router.push(`/event/${id}`);
+  function handleFeed(babyId: string) {
+    return lock(async () => {
+      const id = await logFeed(babyId);
+      router.push(`/event/${id}`);
+    });
   }
 
-  async function handleDiaper(babyId: string) {
-    const id = await logDiaper(babyId);
-    router.push(`/event/${id}`);
+  function handleDiaper(babyId: string) {
+    return lock(async () => {
+      const id = await logDiaper(babyId);
+      router.push(`/event/${id}`);
+    });
   }
 
-  async function handleStartNursing(babyId: string) {
+  function handleStartNursing(babyId: string) {
     // 直接採用輪替建議，這樣「開始親餵」仍然是一鍵
-    await startNursing(babyId, suggestNextSide(events, babyId));
+    return lock(async () => {
+      await startNursing(babyId, suggestNextSide(events, babyId));
+    });
   }
 
-  async function handleStopNursing(eventId: string) {
-    await endNursing(eventId);
-    // 結束後開彈窗，讓你能立刻修正時長（忘記按結束的補救）
-    router.push(`/event/${eventId}`);
+  function handleStopNursing(eventId: string) {
+    return lock(async () => {
+      await endNursing(eventId);
+      // 結束後開彈窗，讓你能立刻修正時長（忘記按結束的補救）
+      router.push(`/event/${eventId}`);
+    });
   }
 
-  async function handleBoth(type: 'feed' | 'diaper') {
-    const sessionId = await logBoth(babyIds, type);
-    router.push(`/session/${sessionId}`);
+  function handleBoth(type: 'feed' | 'diaper') {
+    return lock(async () => {
+      const sessionId = await logBoth(babyIds, type);
+      router.push(`/session/${sessionId}`);
+    });
   }
 
-  async function handleTandemNursing() {
-    if (tandemSessionId) {
-      await endNursingSession(tandemSessionId);
-      router.push(`/session/${tandemSessionId}`);
-      return;
-    }
-    await startNursingBoth(babyIds, suggestNextSide(events, babyIds[0]) ?? 'left');
+  function handleTandemNursing() {
+    return lock(async () => {
+      if (tandemSessionId) {
+        await endNursingSession(tandemSessionId);
+        router.push(`/session/${tandemSessionId}`);
+        return;
+      }
+      await startNursingBoth(babyIds, suggestNextSide(events, babyIds[0]) ?? 'left');
+    });
   }
 
   return (

@@ -132,9 +132,15 @@ export function todayStats(
   };
 }
 
-/** 距上次餵奶是否已超過 FEED_DUE_HOURS。 */
+/**
+ * 距上次餵奶是否已超過 FEED_DUE_HOURS。
+ *
+ * 沒有任何紀錄時回傳 false 而不是 true：零筆紀錄代表「沒有資訊」，
+ * 不代表「該餵了」。一裝好 APP 就看到兩個紅色警示只是噪音，
+ * 而警示看久了會被無視，那才是真正的損失。
+ */
 export function isFeedDue(last: BabyEvent | undefined, now: number = Date.now()): boolean {
-  if (!last) return true;
+  if (!last) return false;
   return now - last.occurredAt >= FEED_DUE_HOURS * 3600_000;
 }
 
