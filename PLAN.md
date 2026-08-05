@@ -496,15 +496,27 @@ adb start-server
 adb devices          # 等它從 authorizing 變成 device
 ```
 
-### 模擬器：螢幕鍵盤不跳出來（AVD 設定問題，已解）
+### 模擬器：螢幕鍵盤不跳出來（兩個獨立原因，都已解）
 
-**症狀**：點輸入框，欄位拿到焦點、游標會閃，但螢幕鍵盤永遠不出現。
+**症狀**：點輸入框，欄位拿到焦點、游標會閃，但看不到螢幕鍵盤。
 
-**原因**：AVD 的 `hw.keyboard=yes`，模擬器對 Android 宣稱「有實體鍵盤」（也就是你電腦的鍵盤），Android 就主動隱藏螢幕鍵盤。跟 APP 與 React Native 完全無關。
+跟 APP 與 React Native 完全無關，是模擬器環境的兩件事疊在一起：
 
-先試了 `adb shell settings put secure show_ime_with_hard_keyboard 1` —— 值確實變成 1，但 `dumpsys input_method` 仍回 `mInputShown=false`，**在 Android 17 (API 37) 上這個 setting 沒有效果**。
+**原因二（這才是主因，也最容易誤判）：Gboard 被設成「浮動鍵盤」模式且縮到螢幕左邊緣。**
 
-**有效的解法**：改 AVD 設定並冷開機。
+鍵盤其實**有開**（`dumpsys input_method` 回 `mInputShown=true`），只是變成畫面角落一顆直立的小膠囊（麥克風 / 倒退 / ✓ / 表情 / ☰），看起來就像什麼都沒出現。這個症狀從第一張截圖就存在，但很容易被誤認為「Gboard 的工具列」而忽略。
+
+重設回預設的停靠模式：
+```
+adb shell pm clear com.google.android.inputmethod.latin
+```
+誤觸拖曳就會再次變成浮動模式，屆時重跑同一行即可。
+
+**原因一：AVD 的 `hw.keyboard=yes`**，模擬器對 Android 宣稱「有實體鍵盤」（使用者電腦的鍵盤），Android 因此傾向隱藏螢幕鍵盤。
+
+網路教學普遍推薦的 `adb shell settings put secure show_ime_with_hard_keyboard 1` —— 值確實變成 1，但 `mInputShown` 仍為 `false`，**在 Android 17 (API 37) 上實測無效**。
+
+有效的解法是改 AVD 設定並冷開機：
 
 ```
 # 1. 編輯 C:\Users\a0958\.android\avd\Pixel_8_Pro.avd\config.ini
