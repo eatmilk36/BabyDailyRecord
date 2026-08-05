@@ -496,16 +496,47 @@ adb start-server
 adb devices          # 等它從 authorizing 變成 device
 ```
 
-### 模擬器打不出中文（已查證，不是設定問題）
+### 模擬器：螢幕鍵盤不跳出來（AVD 設定問題，已解）
 
-- 這台模擬器只裝了 Gboard 英文版與語音輸入，**沒有任何中文輸入法**
-- Gboard 內建 **145 種鍵盤佈局，但 `zh_*` 是零** —— 中文佈局要從 Google 下載語言包，需要在模擬器裡登入 Google 帳號
-- **用電腦鍵盤打中文架構上不可能**：Windows 的注音/拼音在 Windows 上組字，模擬器收到的是原始按鍵事件而非組好的字
+**症狀**：點輸入框，欄位拿到焦點、游標會閃，但螢幕鍵盤永遠不出現。
 
-可行做法：
-1. **剪貼簿貼上**（已實測可行）：Windows 複製中文 → 點模擬器欄位 → Ctrl+V。模擬器與主機共用剪貼簿
-2. 在模擬器登入 Google，讓 Gboard 下載中文語言包
-3. 用實體手機（自己的中文鍵盤直接可用）
+**原因**：AVD 的 `hw.keyboard=yes`，模擬器對 Android 宣稱「有實體鍵盤」（也就是你電腦的鍵盤），Android 就主動隱藏螢幕鍵盤。跟 APP 與 React Native 完全無關。
+
+先試了 `adb shell settings put secure show_ime_with_hard_keyboard 1` —— 值確實變成 1，但 `dumpsys input_method` 仍回 `mInputShown=false`，**在 Android 17 (API 37) 上這個 setting 沒有效果**。
+
+**有效的解法**：改 AVD 設定並冷開機。
+
+```
+# 1. 編輯 C:\Users\a0958\.android\avd\Pixel_8_Pro.avd\config.ini
+hw.keyboard=no
+
+# 2. 重開模擬器（config.ini 只在啟動時讀取）
+adb emu kill
+%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe -avd Pixel_8_Pro -no-snapshot-load
+
+# 3. 重開後 adb reverse 會消失，重建（或直接跑 npm run emu）
+adb reverse tcp:8081 tcp:8081
+```
+
+驗證：`mInputShown=true`，QWERTY 鍵盤正常顯示。
+
+### 模擬器打不出中文 + 純滑鼠的解法（已驗證）
+
+**為什麼不能用電腦鍵盤打中文**：Windows 的注音/拼音是在 **Windows 上組字**的，模擬器收到的是原始按鍵事件而不是組好的字。架構限制，無解。
+
+**為什麼鍵盤上沒有中文**：Gboard 內建 **145 種鍵盤佈局，但 `zh_*` 是零**。中文佈局要從 Google 下載語言包，需要在模擬器裡登入 Google 帳號。
+
+**純滑鼠的可行流程（已實測完整走通）**：
+
+1. 在 Windows 複製中文（`Ctrl+C`）
+2. 點模擬器的輸入框 → 鍵盤跳出來
+3. 點鍵盤工具列的**剪貼簿圖示 📋**
+4. 剛複製的中文會變成一個一鍵建議 chip（例如「📋 小熊」），點它就插入
+
+模擬器與主機共用剪貼簿，所以不需要在模擬器裡有中文輸入法。
+數字欄位（生日 `YYYY-MM-DD`）用鍵盤的 `?123` 直接點就好。
+
+想要真正的中文鍵盤：在模擬器登入 Google 帳號，到 Gboard 設定加「中文（繁體）→ 注音」讓它下載語言包。或直接用實體手機（自己的中文鍵盤本來就能用）。
 
 **待討論的設計取捨**
 
