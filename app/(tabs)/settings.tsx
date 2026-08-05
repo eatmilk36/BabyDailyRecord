@@ -7,7 +7,7 @@ import { updateBaby, useBabies } from '../../db/queries';
 import type { Baby } from '../../db/schema';
 import { exportCsv, exportJson } from '../../lib/export';
 import { importJson } from '../../lib/import';
-import { formatBabyAge } from '../../lib/time';
+import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../../lib/time';
 import { fontSize, radius, spacing } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
@@ -139,14 +139,15 @@ function BabyEditor({ baby }: { baby: Baby }) {
       />
       <TextInput
         value={birth}
-        onChangeText={setBirth}
+        onChangeText={(text) => setBirth(maskDateInput(text))}
         onEndEditing={() => {
           if (birthValid && birth !== baby.birthDate) updateBaby(baby.id, { birthDate: birth });
           else if (!birthValid) setBirth(baby.birthDate);
         }}
-        placeholder="YYYY-MM-DD"
+        placeholder="YYYYMMDD（直接打數字）"
         placeholderTextColor={t.textMuted}
-        keyboardType="numbers-and-punctuation"
+        keyboardType="number-pad"
+        maxLength={DATE_INPUT_MAX_LENGTH}
         autoCapitalize="none"
         style={[styles.input, { color: t.text, borderColor: t.cardBorder, backgroundColor: t.card }]}
       />

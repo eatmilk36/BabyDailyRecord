@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SlimButton } from '../components/SlimButton';
 import { createBabies } from '../db/queries';
-import { formatBabyAge } from '../lib/time';
+import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../lib/time';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { useTheme } from '../theme/useTheme';
 
@@ -71,10 +71,12 @@ export default function Onboarding() {
             <Text style={[styles.label, { color: t.textMuted }]}>出生日期（兩個寶寶共用）</Text>
             <TextInput
               value={birth}
-              onChangeText={setBirth}
-              placeholder="YYYY-MM-DD"
+              // 只吃數字，`-` 自動補。打 20260624 就會變成 2026-06-24
+              onChangeText={(text) => setBirth(maskDateInput(text))}
+              placeholder="YYYYMMDD（直接打數字）"
               placeholderTextColor={t.textMuted}
-              keyboardType="numbers-and-punctuation"
+              keyboardType="number-pad"
+              maxLength={DATE_INPUT_MAX_LENGTH}
               autoCapitalize="none"
               style={[
                 styles.input,

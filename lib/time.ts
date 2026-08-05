@@ -87,6 +87,28 @@ export function formatDayLabel(key: string, now: number = Date.now()): string {
   return `${format(date, 'M月d日')} ${weekdays[date.getDay()]}`;
 }
 
+/**
+ * 生日輸入遮罩：只吃數字，自動補上 `-`。
+ *
+ * 打 `20260624` → 顯示 `2026-06-24`，不用去找 `-` 鍵在哪
+ * （模擬器的數字鍵盤上要切換頁面才找得到，實機上也是多一步）。
+ *
+ * 用 `-` 而不是 `/`：資料庫存的是 ISO 格式，date-fns 的 parseISO() 也只吃 `-`，
+ * 統一用 `-` 就不需要在顯示與儲存之間做轉換。
+ *
+ * 每次都從「原字串裡的數字」重新產生輸出，所以退格會自然運作：
+ *   `2026-0` 退格 → 原字串 `2026-` → 數字 `2026` → 輸出 `2026`（連 `-` 一起消失）
+ */
+export function maskDateInput(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 4) return d;
+  if (d.length <= 6) return `${d.slice(0, 4)}-${d.slice(4)}`;
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}`;
+}
+
+/** 遮罩後的完整長度 `YYYY-MM-DD`，給 TextInput 的 maxLength 用 */
+export const DATE_INPUT_MAX_LENGTH = 10;
+
 /** 早安 / 午安 / 晚安 / 深夜辛苦了 */
 export function greeting(now: number = Date.now()): string {
   const h = new Date(now).getHours();
