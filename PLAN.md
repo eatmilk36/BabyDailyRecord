@@ -462,6 +462,51 @@ v1 已實作完成（步驟 0–9）。`npx tsc --noEmit` 全綠，`npx expo exp
 
 觸覺回饋強度、深色模式的實際觀感、匯出的系統分享選單、`expo-document-picker` 回傳的 content URI 能否被 `new File()` 讀取、各家 Android 定製系統的行為差異。
 
+### 模擬器開發的兩個環境坑（實測踩到）
+
+**1. `--localhost` 模式在這台機器上會壞掉，因為 Metro 只綁 IPv6**
+
+`npx expo start --localhost` 時 Node 把 `localhost` 解析成 IPv6，Metro 只綁 `::1`：
+
+| 測試 | 結果 |
+|---|---|
+| `http://127.0.0.1:8081/status`（IPv4） | ❌ 連不上 |
+| `http://[::1]:8081/status`（IPv6） | ✅ 200 |
+| `adb reverse tcp:8081 tcp:8081` | 存在，但轉發到 **IPv4** `127.0.0.1:8081` |
+
+結果就是 adb 通道把請求送到一個沒人在聽的位址，Expo Go 顯示「Something went wrong」，而 Metro 端完全看不到任何打包請求。
+
+解法是強迫 Node 優先解析 IPv4。已包成 npm script，不用每次記：
+
+```
+npm run emu
+```
+（= `cross-env NODE_OPTIONS=--dns-result-order=ipv4first expo start --localhost --android`）
+
+驗證：Metro 改綁 `127.0.0.1`，`Android Bundled 2545ms (1943 modules)` 走 adb reverse 成功。
+
+**2. adb server 會卡死，症狀會偽裝成別的問題**
+
+`adb devices` 無回應時，Expo 的 `--localhost` 模式（需要先跑 `adb reverse`）會停在「Starting Metro Bundler」不動，並每 10 秒重試堆積 adb 行程（實測累積到 51 個）。真正的錯誤是 `adb start-server` 回 `protocol fault (couldn't read status): connection reset`。
+
+處理方式：
+```
+taskkill /F /IM adb.exe /T
+adb start-server
+adb devices          # 等它從 authorizing 變成 device
+```
+
+### 模擬器打不出中文（已查證，不是設定問題）
+
+- 這台模擬器只裝了 Gboard 英文版與語音輸入，**沒有任何中文輸入法**
+- Gboard 內建 **145 種鍵盤佈局，但 `zh_*` 是零** —— 中文佈局要從 Google 下載語言包，需要在模擬器裡登入 Google 帳號
+- **用電腦鍵盤打中文架構上不可能**：Windows 的注音/拼音在 Windows 上組字，模擬器收到的是原始按鍵事件而非組好的字
+
+可行做法：
+1. **剪貼簿貼上**（已實測可行）：Windows 複製中文 → 點模擬器欄位 → Ctrl+V。模擬器與主機共用剪貼簿
+2. 在模擬器登入 Google，讓 Gboard 下載中文語言包
+3. 用實體手機（自己的中文鍵盤直接可用）
+
 **待討論的設計取捨**
 
 兩張寶寶卡的大按鈕顏色完全相同（喝奶=蜜桃、尿布=薄荷），所以半夜辨識寶寶只靠「卡片底色 + 名字 + 垂直位置」。若改成按鈕也染上寶寶色，辨識寶寶會更快，但會失去「喝奶 vs 尿布」的動作色編碼（也就更容易按錯類型）。兩種錯誤哪個更痛，要實際用過才知道。
