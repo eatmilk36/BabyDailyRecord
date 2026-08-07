@@ -45,6 +45,10 @@ export default function TabsLayout() {
         options={{ title: '紀錄', tabBarIcon: () => <Text style={{ fontSize: 20 }}>📖</Text> }}
       />
       <Tabs.Screen
+        name="stats"
+        options={{ title: '統計', tabBarIcon: () => <Text style={{ fontSize: 20 }}>📊</Text> }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{ title: '設定', tabBarIcon: () => <Text style={{ fontSize: 20 }}>⚙️</Text> }}
       />

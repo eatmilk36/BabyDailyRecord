@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lt } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { db } from './client';
 import {
@@ -87,6 +87,52 @@ export function useEventsForDay(dayStart: number) {
   return { events: data as BabyEvent[], error, loaded: updatedAt !== undefined };
 }
 
+/**
+ * 母乳庫存（ml）= Σ擠出的量 − Σ（瓶餵且奶種=母奶）。
+ *
+ * 刻意【不存庫存欄位】，完全從紀錄推導 —— 這樣不可能出現「庫存數字和實際
+ * 紀錄不一致」的 bug（那種 bug 只要漏改一處就會慢慢飄掉，而且很難發現）。
+ *
+ * ⚠️ 這裡必須用 SQL 聚合掃全表，不能用 useRecentEvents 的 1000 筆上限 ——
+ * 庫存是從第一天累積的，用 capped 的清單算會靜默算錯。
+ */
+export function useMilkStashMl() {
+  const { data, error, updatedAt } = useLiveQuery(
+    db
+      .select({
+        pumped: sql<number>`coalesce(sum(case when ${events.type} = 'pump' then ${events.amountMl} else 0 end), 0)`,
+        used: sql<number>`coalesce(sum(case when ${events.type} = 'feed' and ${events.method} = 'bottle' and ${events.milk} = 'breast' then ${events.amountMl} else 0 end), 0)`,
+      })
+      .from(events)
+      .where(isNull(events.deletedAt)),
+  );
+
+  const row = (data as { pumped: number; used: number }[])[0];
+  return {
+    pumped: row?.pumped ?? 0,
+    used: row?.used ?? 0,
+    stash: (row?.pumped ?? 0) - (row?.used ?? 0),
+    error,
+    loaded: updatedAt !== undefined,
+  };
+}
+
+/**
+ * 所有生長紀錄，舊到新（畫曲線要按時間遞增）。
+ * 用專用查詢而不是共用的最近 1000 筆：生長紀錄筆數少但跨好幾個月，
+ * 很容易被日常的餵奶尿布紀錄擠出那 1000 筆之外。
+ */
+export function useGrowthEvents() {
+  const { data, error, updatedAt } = useLiveQuery(
+    db
+      .select()
+      .from(events)
+      .where(and(isNull(events.deletedAt), eq(events.type, 'growth')))
+      .orderBy(asc(events.occurredAt)),
+  );
+  return { events: data as BabyEvent[], error, loaded: updatedAt !== undefined };
+}
+
 // ---------------------------------------------------------------------------
 // 推導（純函式）
 // 全部假設傳進來的 list 是【新到舊】排序，也就是 useRecentEvents 的輸出。
@@ -103,7 +149,31 @@ export function lastEventOf(
 
 /** 某寶正在進行中的親餵計時。 */
 export function activeNursingOf(list: BabyEvent[], babyId: string): BabyEvent | undefined {
-  return list.find((e) => e.babyId === babyId && e.status === 'active');
+  return list.find((e) => e.babyId === babyId && e.status === 'active' && e.type === 'feed');
+}
+
+/** 某寶正在睡（進行中的睡眠紀錄）。 */
+export function activeSleepOf(list: BabyEvent[], babyId: string): BabyEvent | undefined {
+  return list.find((e) => e.babyId === babyId && e.status === 'active' && e.type === 'sleep');
+}
+
+export type GrowthPoint = {
+  at: number;
+  weightG: number | null;
+  heightMm: number | null;
+  headMm: number | null;
+};
+
+/** 某寶的生長序列，舊到新。傳進來的清單要是 useGrowthEvents 的輸出（已遞增排序）。 */
+export function growthSeriesOf(list: BabyEvent[], babyId: string): GrowthPoint[] {
+  return list
+    .filter((e) => e.babyId === babyId && e.type === 'growth')
+    .map((e) => ({
+      at: e.occurredAt,
+      weightG: e.weightG,
+      heightMm: e.heightMm,
+      headMm: e.headMm,
+    }));
 }
 
 /** 全部進行中的親餵計時（同時哺餵會有兩筆）。 */
@@ -135,6 +205,9 @@ export type TodayStats = {
   nursingMin: number;
   diaperCount: number;
   poopCount: number;
+  /** 睡眠總分鐘（只算已結束的，進行中的不列入以免數字一直跳） */
+  sleepMin: number;
+  sleepCount: number;
 };
 
 /**
@@ -144,14 +217,20 @@ export type TodayStats = {
 export function statsOf(list: BabyEvent[], babyId: string): TodayStats {
   const mine = list.filter((e) => e.babyId === babyId);
 
+  const feeds = mine.filter((e) => e.type === 'feed');
+  const sleeps = mine.filter((e) => e.type === 'sleep' && e.status === 'done');
+
   return {
-    feedCount: mine.filter((e) => e.type === 'feed' && e.status === 'done').length,
-    totalMl: mine.reduce((sum, e) => sum + (e.amountMl ?? 0), 0),
-    nursingMin: mine.reduce((sum, e) => sum + (e.durationMin ?? 0), 0),
+    feedCount: feeds.filter((e) => e.status === 'done').length,
+    // 只加喝奶的量 —— 擠奶也用 amountMl，不篩 type 會把擠出的量算進攝入量
+    totalMl: feeds.reduce((sum, e) => sum + (e.amountMl ?? 0), 0),
+    nursingMin: feeds.reduce((sum, e) => sum + (e.durationMin ?? 0), 0),
     diaperCount: mine.filter((e) => e.type === 'diaper').length,
     poopCount: mine.filter(
       (e) => e.type === 'diaper' && (e.diaperKind === 'poop' || e.diaperKind === 'both'),
     ).length,
+    sleepMin: sleeps.reduce((sum, e) => sum + (e.durationMin ?? 0), 0),
+    sleepCount: sleeps.length,
   };
 }
 
@@ -392,6 +471,79 @@ export async function endNursingSession(sessionId: string): Promise<void> {
   }
 }
 
+/**
+ * 擠奶事件用的 babyId。
+ *
+ * 擠奶是媽媽做的事，不屬於任何一個寶寶，但 babyId 是 NOT NULL。
+ * SQLite 沒辦法用 ALTER 移除 NOT NULL（要整表重建，對已有真實資料的
+ * 手機是不必要的風險），所以用一個哨兵值表示「屬於家庭而非某個寶寶」。
+ *
+ * 好處是所有 `e.babyId === babyId` 的篩選都自然排除它 —— 擠奶不會被算進
+ * 任一寶的攝入量，這正是我們要的。
+ */
+export const SHARED_BABY_ID = 'shared';
+
+/** 開始睡眠計時。結束時用 endSleep。 */
+export async function startSleep(babyId: string): Promise<string> {
+  const now = Date.now();
+  const id = newId();
+  await db.insert(events).values({
+    id,
+    familyId: LOCAL_FAMILY_ID,
+    babyId,
+    type: 'sleep',
+    occurredAt: now,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now,
+  });
+  return id;
+}
+
+/** 結束睡眠。與 endNursing 是同一套邏輯（寫 endedAt 並換算分鐘）。 */
+export const endSleep = endNursing;
+
+/** 擠奶。不屬於任何寶寶，所以用 SHARED_BABY_ID。 */
+export async function logPump(amountMl?: number): Promise<string> {
+  const now = Date.now();
+  const id = newId();
+  await db.insert(events).values({
+    id,
+    familyId: LOCAL_FAMILY_ID,
+    babyId: SHARED_BABY_ID,
+    type: 'pump',
+    occurredAt: now,
+    status: 'done',
+    amountMl: amountMl ?? null,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return id;
+}
+
+/** 生長紀錄（體重／身長／頭圍，都可選填）。 */
+export async function logGrowth(
+  babyId: string,
+  m: { weightG?: number | null; heightMm?: number | null; headMm?: number | null },
+): Promise<string> {
+  const now = Date.now();
+  const id = newId();
+  await db.insert(events).values({
+    id,
+    familyId: LOCAL_FAMILY_ID,
+    babyId,
+    type: 'growth',
+    occurredAt: now,
+    status: 'done',
+    weightG: m.weightG ?? null,
+    heightMm: m.heightMm ?? null,
+    headMm: m.headMm ?? null,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return id;
+}
+
 export type EventPatch = Partial<
   Pick<
     BabyEvent,
@@ -405,6 +557,9 @@ export type EventPatch = Partial<
     | 'diaperKind'
     | 'stoolCard'
     | 'diaperColor'
+    | 'weightG'
+    | 'heightMm'
+    | 'headMm'
     | 'note'
   >
 >;

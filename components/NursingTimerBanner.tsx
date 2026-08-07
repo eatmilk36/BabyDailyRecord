@@ -13,6 +13,15 @@ type Props = {
   event: BabyEvent;
   tint: string;
   onStop: () => void;
+  /** 進行中的標題，預設「正在餵」 */
+  title?: string;
+  /** 超時後的標題，預設「還在餵嗎？」 */
+  overdueTitle?: string;
+  /**
+   * 超過幾分鐘算超時。預設 NURSING_OVERDUE_MIN（60）。
+   * 傳 null 表示不做超時警示 —— 睡眠就用這個，寶寶睡 3 小時是好事不是異常。
+   */
+  overdueMin?: number | null;
 };
 
 /**
@@ -25,11 +34,18 @@ type Props = {
  * 超過 60 分鐘轉成警示色並問「還在餵嗎？」——這是 v1 的忘記按結束守護機制。
  * （推播通知版留到第二階段，因為那要處理 Android 13+ 權限與各家省電機制。）
  */
-export function NursingTimerBanner({ event, tint, onStop }: Props) {
+export function NursingTimerBanner({
+  event,
+  tint,
+  onStop,
+  title = '正在餵',
+  overdueTitle = '還在餵嗎？',
+  overdueMin = NURSING_OVERDUE_MIN,
+}: Props) {
   const t = useTheme();
   const now = useNow(1000);
   const elapsedMin = Math.floor((now - event.occurredAt) / 60000);
-  const overdue = elapsedMin >= NURSING_OVERDUE_MIN;
+  const overdue = overdueMin != null && elapsedMin >= overdueMin;
 
   return (
     <View
@@ -43,7 +59,7 @@ export function NursingTimerBanner({ event, tint, onStop }: Props) {
     >
       <View style={styles.left}>
         <Text style={[styles.title, { color: overdue ? t.warn : t.text }]}>
-          {overdue ? '還在餵嗎？' : '正在餵'}
+          {overdue ? overdueTitle : title}
           {event.side ? ` · ${SIDE_LABEL[event.side]}` : ''}
         </Text>
         <Text style={[styles.elapsed, { color: overdue ? t.warn : t.text }]}>
@@ -52,6 +68,7 @@ export function NursingTimerBanner({ event, tint, onStop }: Props) {
         <Text style={[styles.meta, { color: t.textMuted }]}>
           {formatClock(event.occurredAt)} 開始
         </Text>
+        {/* 睡眠沒有超時警示：寶寶睡 3 小時是好事，不該被標紅 */}
       </View>
       <View style={styles.right}>
         <SlimButton label="結束" onPress={onStop} tint={overdue ? t.warn : tint} filled />

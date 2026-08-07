@@ -19,6 +19,7 @@ import {
   type EventPatch,
 } from '../../db/queries';
 import type { BabyEvent } from '../../db/schema';
+import { TYPE_LABEL } from '../../lib/labels';
 import { formatClock } from '../../lib/time';
 import { fontSize, radius, spacing } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
@@ -106,7 +107,8 @@ export default function EventModal() {
       <View style={styles.header}>
         <View style={[styles.dot, { backgroundColor: tint }]} />
         <Text style={[styles.title, { color: t.text }]}>
-          {baby?.name ?? '寶寶'} · {event.type === 'feed' ? '喝奶' : '尿布'}
+          {/* 擠奶不屬於任何寶寶，所以找不到 baby 時不要硬寫「寶寶」 */}
+          {event.type === 'pump' ? '擠奶' : `${baby?.name ?? '寶寶'} · ${TYPE_LABEL[event.type]}`}
         </Text>
       </View>
       <View style={[styles.savedBadge, { backgroundColor: `${t.diaper}26` }]}>

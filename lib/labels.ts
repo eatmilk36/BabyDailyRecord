@@ -2,6 +2,22 @@ import type { BabyEvent } from '../db/schema';
 
 /** 中文標籤對照。UI 一律用這裡的字，不要在元件裡散落硬字串。 */
 
+export const TYPE_LABEL = {
+  feed: '喝奶',
+  diaper: '尿布',
+  sleep: '睡覺',
+  pump: '擠奶',
+  growth: '生長',
+} as const;
+
+export const TYPE_EMOJI = {
+  feed: '🍼',
+  diaper: '💧',
+  sleep: '🌙',
+  pump: '🫗',
+  growth: '📏',
+} as const;
+
 export const METHOD_LABEL = { bottle: '瓶餵', nursing: '親餵' } as const;
 export const MILK_LABEL = { breast: '母奶', formula: '配方', mixed: '混合' } as const;
 export const SIDE_LABEL = { left: '左', right: '右', both: '兩側' } as const;
@@ -56,8 +72,43 @@ export const DIAPER_COLOR_SWATCH = {
 
 export const SEX_LABEL = { boy: '男寶', girl: '女寶' } as const;
 
-/** 一行摘要：「配方 120ml」/「親餵 左 18 分」/「尿+便 · 黃」 */
+/** 公克 → 「3.25 kg」 */
+export function formatWeight(g: number): string {
+  return `${(g / 1000).toFixed(2)} kg`;
+}
+
+/** 公釐 → 「50.2 cm」 */
+export function formatLength(mm: number): string {
+  return `${(mm / 10).toFixed(1)} cm`;
+}
+
+/** 分鐘 → 「2 小時 15 分」/「45 分」 */
+export function formatMinutes(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return `${m} 分`;
+  return m === 0 ? `${h} 小時` : `${h} 小時 ${m} 分`;
+}
+
+/** 一行摘要：「配方 120ml」/「親餵 左 18 分」/「尿+便 · 大便卡 3 ⚠」/「睡 2 小時 15 分」 */
 export function summarizeEvent(e: BabyEvent): string {
+  if (e.type === 'sleep') {
+    if (e.status === 'active') return '正在睡';
+    return e.durationMin != null ? `睡 ${formatMinutes(e.durationMin)}` : '睡覺';
+  }
+
+  if (e.type === 'pump') {
+    return e.amountMl != null ? `擠出 ${e.amountMl}ml` : '擠奶';
+  }
+
+  if (e.type === 'growth') {
+    const parts: string[] = [];
+    if (e.weightG != null) parts.push(formatWeight(e.weightG));
+    if (e.heightMm != null) parts.push(formatLength(e.heightMm));
+    if (e.headMm != null) parts.push(`頭圍 ${formatLength(e.headMm)}`);
+    return parts.length ? parts.join(' · ') : '生長紀錄';
+  }
+
   if (e.type === 'feed') {
     const parts: string[] = [];
     if (e.milk) parts.push(MILK_LABEL[e.milk]);
@@ -86,3 +137,9 @@ export const ML_PRESETS = [60, 90, 120, 150, 180] as const;
 
 /** 親餵時長快選（補登用） */
 export const DURATION_PRESETS = [10, 15, 20, 25, 30] as const;
+
+/** 睡眠時長快選（分鐘）。小睡到夜間長睡都要涵蓋 */
+export const SLEEP_PRESETS = [30, 60, 90, 120, 180, 240] as const;
+
+/** 擠奶量快選 */
+export const PUMP_PRESETS = [60, 90, 120, 150, 180] as const;

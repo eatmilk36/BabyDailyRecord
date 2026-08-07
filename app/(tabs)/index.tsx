@@ -5,18 +5,23 @@ import { BabyCard } from '../../components/BabyCard';
 import { SlimButton } from '../../components/SlimButton';
 import {
   activeNursingOf,
+  activeSleepOf,
   allActiveNursing,
   endNursing,
   endNursingSession,
+  endSleep,
   lastEventOf,
   logBoth,
   logDiaper,
   logFeed,
+  logPump,
   startNursing,
   startNursingBoth,
+  startSleep,
   suggestNextSide,
   todayStats,
   useBabies,
+  useMilkStashMl,
   useRecentEvents,
 } from '../../db/queries';
 import { formatBabyAge, greeting } from '../../lib/time';
@@ -42,6 +47,7 @@ export default function Home() {
   const now = useNow(30_000);
   const { babies, loaded: babiesLoaded } = useBabies();
   const { events } = useRecentEvents();
+  const { stash } = useMilkStashMl();
   const insets = useSafeAreaInsets();
   // 所有寫入動作共用一把鎖，防止「覺得沒反應所以再按一次」產生重複紀錄
   const lock = useActionLock();
@@ -101,6 +107,27 @@ export default function Home() {
     });
   }
 
+  function handleStartSleep(babyId: string) {
+    return lock(async () => {
+      await startSleep(babyId);
+    });
+  }
+
+  function handleStopSleep(eventId: string) {
+    return lock(async () => {
+      await endSleep(eventId);
+      // 結束後開彈窗，讓你能修正時長（忘記按醒來的補救）
+      router.push(`/event/${eventId}`);
+    });
+  }
+
+  function handlePump() {
+    return lock(async () => {
+      const id = await logPump();
+      router.push(`/event/${id}`);
+    });
+  }
+
   function handleTandemNursing() {
     return lock(async () => {
       if (tandemSessionId) {
@@ -138,6 +165,7 @@ export default function Home() {
             lastFeed={lastEventOf(events, baby.id, 'feed')}
             lastDiaper={lastEventOf(events, baby.id, 'diaper')}
             activeNursing={activeNursingOf(events, baby.id)}
+            activeSleep={activeSleepOf(events, baby.id)}
             suggestedSide={suggestNextSide(events, baby.id)}
             stats={todayStats(events, baby.id, now)}
             onFeed={() => handleFeed(baby.id)}
@@ -146,6 +174,11 @@ export default function Home() {
             onStopNursing={() => {
               const active = activeNursingOf(events, baby.id);
               if (active) handleStopNursing(active.id);
+            }}
+            onStartSleep={() => handleStartSleep(baby.id)}
+            onStopSleep={() => {
+              const active = activeSleepOf(events, baby.id);
+              if (active) handleStopSleep(active.id);
             }}
           />
         ))}
@@ -165,6 +198,17 @@ export default function Home() {
             </View>
           </View>
         ) : null}
+
+        {/* 擠奶不屬於任何一個寶寶，所以獨立一區。
+            庫存是純推導：Σ擠出 − Σ（瓶餵母奶），不存欄位就不會有對不上的問題。 */}
+        <View style={styles.bothWrap}>
+          <Text style={[styles.bothLabel, { color: t.textMuted }]}>
+            擠奶　母乳庫存 {stash} ml
+          </Text>
+          <View style={styles.bothRow}>
+            <SlimButton label="🫗 記一次擠奶" tint={t.primary} onPress={handlePump} />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

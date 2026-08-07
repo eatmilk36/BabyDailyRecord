@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Baby, BabyEvent } from '../db/schema';
-import { summarizeEvent } from '../lib/labels';
+import { summarizeEvent, TYPE_EMOJI } from '../lib/labels';
 import { formatClock } from '../lib/time';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
@@ -38,10 +38,11 @@ export function EventRow({ event, baby, onPress, onLongPress }: Props) {
 
       <View style={[styles.dot, { backgroundColor: tone?.base ?? t.textMuted }]} />
       <Text style={[styles.baby, { color: t.text }]} numberOfLines={1}>
-        {baby?.name ?? '—'}
+        {/* 擠奶沒有寶寶，顯示「媽媽」比顯示「—」清楚 */}
+        {baby?.name ?? (event.type === 'pump' ? '媽媽' : '—')}
       </Text>
 
-      <Text style={styles.emoji}>{event.type === 'feed' ? '🍼' : '💧'}</Text>
+      <Text style={styles.emoji}>{TYPE_EMOJI[event.type]}</Text>
       <Text style={[styles.summary, { color: t.text }]} numberOfLines={1}>
         {summarizeEvent(event)}
         {event.status === 'active' ? ' · 進行中' : ''}

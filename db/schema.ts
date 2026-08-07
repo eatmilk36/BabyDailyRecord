@@ -57,7 +57,15 @@ export const events = sqliteTable(
      * 硬塞成一筆之後所有查詢都要拆。sessionId 讓你之後仍能還原「這兩筆同時發生」。
      */
     sessionId: text('session_id'),
-    type: text('type', { enum: ['feed', 'diaper'] }).notNull(),
+    /**
+     * 事件類型。單一 events 表的價值就在這裡 —— 加一種紀錄只要加一個 type，
+     * 而且時間軸混合列表仍然是一句 order by occurred_at desc，不用 UNION。
+     *
+     * sleep  睡眠：occurredAt=入睡、endedAt=醒來、status='active' 代表還在睡
+     * pump   擠奶：用 amountMl 存擠出的量（同單位不同語意，靠 type 區分）
+     * growth 生長：用下面的 weightG / heightMm / headMm
+     */
+    type: text('type', { enum: ['feed', 'diaper', 'sleep', 'pump', 'growth'] }).notNull(),
 
     /** 事件發生時間（epoch ms）。親餵 = 開始時間，因為「上次幾小時前」算的是開始 */
     occurredAt: integer('occurred_at').notNull(),
@@ -100,6 +108,15 @@ export const events = sqliteTable(
     }),
 
     /** 留給未來的紀錄類型（睡眠、體重、副食品…），v1 一律 null */
+    // ---- 生長欄位（type='growth'）----
+    // 全部用整數的最小單位存，避免浮點數累積誤差，也讓排序與比較不出錯。
+    /** 體重，公克。3250 = 3.25 kg */
+    weightG: integer('weight_g'),
+    /** 身長，公釐。502 = 50.2 cm */
+    heightMm: integer('height_mm'),
+    /** 頭圍，公釐 */
+    headMm: integer('head_mm'),
+
     payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>(),
     note: text('note'),
     /** 預留同步用（是誰記的）。v1 為 null */

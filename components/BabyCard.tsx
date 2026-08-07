@@ -16,6 +16,7 @@ type Props = {
   lastFeed?: BabyEvent;
   lastDiaper?: BabyEvent;
   activeNursing?: BabyEvent;
+  activeSleep?: BabyEvent;
   suggestedSide?: NursingSide;
   stats: TodayStats;
   now: number;
@@ -23,6 +24,8 @@ type Props = {
   onDiaper: () => void;
   onStartNursing: () => void;
   onStopNursing: () => void;
+  onStartSleep: () => void;
+  onStopSleep: () => void;
 };
 
 /**
@@ -39,6 +42,7 @@ export function BabyCard({
   lastFeed,
   lastDiaper,
   activeNursing,
+  activeSleep,
   suggestedSide,
   stats,
   now,
@@ -46,6 +50,8 @@ export function BabyCard({
   onDiaper,
   onStartNursing,
   onStopNursing,
+  onStartSleep,
+  onStopSleep,
 }: Props) {
   const t = useTheme();
   const tone = t.baby[baby.colorKey];
@@ -82,19 +88,35 @@ export function BabyCard({
         <View style={styles.block}>
           <NursingTimerBanner event={activeNursing} tint={tone.base} onStop={onStopNursing} />
         </View>
-      ) : (
+      ) : null}
+
+      {activeSleep ? (
         <View style={styles.block}>
-          <SlimButton
-            label={
-              suggestedSide
-                ? `開始親餵 · 建議 ${SIDE_LABEL[suggestedSide]}`
-                : '開始親餵'
-            }
+          <NursingTimerBanner
+            event={activeSleep}
             tint={tone.base}
-            onPress={onStartNursing}
+            onStop={onStopSleep}
+            title="正在睡"
+            // 睡眠不做超時警示：寶寶睡 3 小時是好事，不該被標紅
+            overdueMin={null}
           />
         </View>
-      )}
+      ) : null}
+
+      {!activeNursing || !activeSleep ? (
+        <View style={[styles.block, styles.slimRow]}>
+          {!activeNursing ? (
+            <SlimButton
+              label={suggestedSide ? `親餵 · 建議 ${SIDE_LABEL[suggestedSide]}` : '開始親餵'}
+              tint={tone.base}
+              onPress={onStartNursing}
+            />
+          ) : null}
+          {!activeSleep ? (
+            <SlimButton label="🌙 開始睡覺" tint={tone.base} onPress={onStartSleep} />
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.buttonRow}>
         <BigActionButton emoji="🍼" label="喝奶" color={t.feed} onPress={onFeed} />
@@ -170,5 +192,6 @@ const styles = StyleSheet.create({
   accentBar: { width: 4, height: 28, borderRadius: 2 },
 
   block: { marginTop: spacing.xs },
+  slimRow: { flexDirection: 'row', gap: spacing.sm },
   buttonRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
 });
