@@ -618,7 +618,66 @@ adb reverse tcp:8081 tcp:8081
 
 ---
 
-## 10. 與此規劃無關的待辦
+## 10. ⚠️ 目前降版到 SDK 54（暫時措施，之後要升回 57）
+
+### 為什麼降
+
+使用者手機的 Expo Go 一直回報 `Project is incompatible with this version of Expo Go`。查證結果：
+
+| 事實 | 值 |
+|---|---|
+| 專案宣告的 runtime（從 dev server 的 manifest 讀出） | `exposdk:57.0.0` |
+| **Play Store 上的 Expo Go** | **還停在 SDK 54** —— SDK 57 版仍在等商店審核 |
+| SDK 57 的 Expo Go | 只能透過 Expo CLI（adb）或直接側載 APK 安裝 |
+
+模擬器能跑是因為當初 Expo CLI 透過 adb 幫它裝了 SDK 57 版；實體手機從 Play Store 拿到的是 SDK 54 版。
+
+其他路都走不通：手動側載 APK 失敗、USB 線當下拿不到、EAS build 需要註冊帳號。**降到 54 是唯一「手機上什麼都不用裝」的路**。
+
+### 降版做了什麼
+
+`npm install expo@^54.0.0` 後 `npx expo install --fix`，18 個套件對齊：
+
+| 套件 | 57 版 | → 54 版 |
+|---|---|---|
+| `expo` | 57.0.11 | 54.0.36 |
+| `react` | 19.2.3 | 19.1.0 |
+| `react-native` | 0.86.2 | 0.81.5 |
+| `expo-router` | 57.0.11 | 6.0.24 |
+| `expo-sqlite` | 57.0.1 | 16.0.10 |
+| `expo-file-system` | 57.0.2 | 19.0.23 |
+| `typescript` | 6.0.3 | 5.9.2 |
+
+**另外必須改 `app.json`**：SDK 57 把很多套件變成了 config plugin，SDK 54 還沒。從 `plugins` 移除了 `expo-status-bar` 與 `expo-sharing`（實測它們在 54 沒有 `app.plugin.js`，留著會讓打包直接失敗並觸發 Node 22 對 node_modules 內 TS 檔的 type-stripping 錯誤）。保留的三個都確認有 `app.plugin.js`：`expo-router`、`expo-sqlite`、`expo-font`。
+
+### 程式碼零修改
+
+原本最擔心的兩處都不用動：
+
+- **`expo-file-system` 19 仍在頂層匯出 `Paths` / `File` / `Directory`**（在 `build/FileSystem.d.ts`），所以匯出/匯入的程式碼不用改寫成舊 API
+- **`expo-sqlite` 16 仍有 `enableChangeListener` 與 `addDatabaseChangeListener`**，drizzle 的 `useLiveQuery` 保得住 —— 這是整個架構的地基，若失守就得引入狀態管理程式庫
+
+### 驗證
+
+- `npx tsc --noEmit` 零錯誤
+- `npx expo export --platform android` 成功（1534 modules / 3.99MB）
+- 附帶好處：expo-router 6 不帶那個 962KB 的 MaterialSymbols 字型，資產反而變少
+
+### 之後怎麼升回 57
+
+等 Expo Go 的 SDK 57 版在 Play Store 上架後：
+
+```
+git revert <降版那個 commit 的 sha>
+npm install
+npx expo start --clear
+```
+
+降版刻意做成**單一個 commit**就是為了這個。
+
+---
+
+## 11. 與此規劃無關的待辦
 
 **GitHub 推送仍然卡住**，與 APP 開發無關但沒解決：
 
