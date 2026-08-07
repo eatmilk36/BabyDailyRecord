@@ -1,5 +1,28 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { LogBox, Platform } from 'react-native';
+
+/**
+ * 靜音 expo-notifications 在 Expo Go 的固定抱怨。
+ *
+ * 它在 warnOfExpoGoPushUsage.js 用 console.error 印一次，條件是
+ * `__DEV__ && isRunningInExpoGo()`。因為是 console.error，RN 會在畫面下方
+ * 蓋一條紅色錯誤提示，測試時很干擾 —— 但它講的是【遠端推播】被移除，
+ * 而 SDK 54 官方文件明寫：
+ *
+ *   "Push notifications (remote notifications) functionality provided by
+ *    expo-notifications is unavailable in Expo Go on Android from SDK 53.
+ *    Local notifications (in-app notifications) remain available in Expo Go."
+ *
+ * 這個 APP 只用本地排程通知（scheduleNotificationAsync + TIME_INTERVAL），
+ * 完全沒有呼叫 getExpoPushTokenAsync，所以這條警告對我們不成立。
+ *
+ * 只在 __DEV__ 靜音，而且只精準比對這一句 —— 不會順手蓋掉別的錯誤。
+ */
+if (__DEV__) {
+  LogBox.ignoreLogs([
+    /expo-notifications: Android Push notifications \(remote notifications\)/,
+  ]);
+}
 
 /**
  * 親餵計時的超時提醒（本地通知）。
