@@ -101,11 +101,14 @@ export const radius = {
 } as const;
 
 /**
- * 底部 tab bar 的高度（不含 safe-area inset）。
+ * 底部 tab bar 高度的【估值】，只用來算各畫面 ScrollView 的下緣留白。
  *
- * 集中成一個常數，因為 tab 佈局和每個畫面的 ScrollView 下緣留白都要用到它 ——
- * 兩邊各寫死一次的話，改了一邊就會出現「內容被 tab 切掉」的 bug
- * （實機截圖就抓到過：首頁的「兩個一起」那排被切掉一半）。
+ * ⚠️ 不要拿它去覆寫 tabBarStyle 的 height。
+ * @react-navigation/bottom-tabs 會自己套用底部 safe-area inset，手動再設一次
+ * 會重複計算，導致可點擊區域與看得到的圖示錯位（實機上「看得到卻點不到」）。
+ *
+ * 這裡只是估值，用來讓捲動內容不被 tab 遮住（首頁「兩個一起」那排曾被切掉）。
+ * 估多了只是多一點空白，無害。
  */
 export const TAB_BAR_HEIGHT = 64;
 

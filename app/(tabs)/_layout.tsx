@@ -1,19 +1,27 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fontSize, TAB_BAR_HEIGHT } from '../../theme/colors';
+import { fontSize } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
 /**
  * 底部三個 tab。放在底部是為了拇指可及——單手抱寶寶時你只有一根拇指能動。
  * 圖示用 emoji 而不是圖示字型：不用多裝套件，而且跟溫馨風格一致。
  *
- * ⚠️ 高度必須加上 insets.bottom：Android 的手勢導覽列會疊在畫面最底部，
- * 寫死高度的話 tab 文字會被那條白色手勢條蓋住（實機截圖抓到的）。
+ * ⚠️ 這裡刻意【只設顏色，不設高度與內距】。
+ *
+ * 踩過的坑：原本為了避免 tab 文字被 Android 手勢導覽列蓋住，我手動寫了
+ *   height: 64 + insets.bottom
+ *   paddingBottom: 8 + insets.bottom
+ * 但 @react-navigation/bottom-tabs 本來就會自己套用底部 safe-area inset。
+ * 手動再加一次等於【重複計算】：整條 bar 被撐高、可點擊區域跟看得到的
+ * 圖示錯位，實機上就變成「看得到 tab 但點了沒反應」。
+ *
+ * 交給它自己算，兩個問題（被切掉、點不到）就都不會發生。
+ * 各畫面 ScrollView 的下緣留白仍用 theme 的 TAB_BAR_HEIGHT 當估值——
+ * 那只是空白，估多了無害。
  */
 export default function TabsLayout() {
   const t = useTheme();
-  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -24,9 +32,6 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: t.card,
           borderTopColor: t.cardBorder,
-          height: TAB_BAR_HEIGHT + insets.bottom,
-          paddingBottom: 8 + insets.bottom,
-          paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: fontSize.xs, fontWeight: '700' },
       }}
