@@ -27,6 +27,8 @@ type Palette = {
   card: string;
   cardBorder: string;
   primary: string;
+  /** primary 的淡底。目前用在底部 tab 的「選中整格上色」 */
+  primarySoft: string;
   text: string;
   textMuted: string;
   /** 喝奶動作色 */
@@ -49,6 +51,7 @@ export const palette: { light: Palette; dark: Palette } = {
     card: '#FFFFFF',
     cardBorder: '#F0E6DA',
     primary: '#C08552',
+    primarySoft: '#F3E3D0',
     text: '#4A3F35',
     textMuted: '#8C7B6B',
     feed: '#E8A87C',
@@ -67,6 +70,7 @@ export const palette: { light: Palette; dark: Palette } = {
     card: '#221F27',
     cardBorder: '#302B36',
     primary: '#F2C078',
+    primarySoft: '#3A2E1D',
     text: '#EDE6DA',
     textMuted: '#9C9288',
     feed: '#F2C078',
