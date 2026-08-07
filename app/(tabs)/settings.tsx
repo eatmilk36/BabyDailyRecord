@@ -4,7 +4,8 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '../../components/Chip';
 import { SlimButton } from '../../components/SlimButton';
-import { updateBaby, useBabies } from '../../db/queries';
+import { NURSING_OVERDUE_MIN, updateBaby, useBabies } from '../../db/queries';
+import { ensureNotificationPermission } from '../../lib/notifications';
 import type { Baby } from '../../db/schema';
 import { exportCsv, exportJson } from '../../lib/export';
 import { importJson } from '../../lib/import';
@@ -97,12 +98,41 @@ export default function Settings() {
           </View>
         </Section>
 
+        <Section title="通知">
+          <Text style={[styles.note, { color: t.textMuted }]}>
+            開始親餵時會排一則 {NURSING_OVERDUE_MIN} 分鐘後的「還在餵嗎？」提醒，按結束就會取消。
+            這是手機自己排的本地通知，不需要網路也不經過任何伺服器。
+            {'\n\n'}
+            第一次開始親餵時會請求通知權限。拒絕也沒關係，記錄完全不受影響，
+            只是少了鎖屏提醒、仍然會在 APP 內顯示警示橫幅。
+            {'\n\n'}
+            ⚠️ 小米／華為／OPPO 等系統的省電機制可能延遲或吃掉通知。
+            若提醒沒出現，去系統設定把「寶寶日誌」（Expo Go）排除在電池最佳化之外。
+          </Text>
+          <View style={styles.buttonRow}>
+            <SlimButton
+              label={busy === '通知' ? '處理中…' : '測試通知權限'}
+              tint={t.primary}
+              disabled={!!busy}
+              onPress={() =>
+                run('通知', async () => {
+                  const ok = await ensureNotificationPermission();
+                  Alert.alert(
+                    ok ? '通知權限正常' : '沒有通知權限',
+                    ok
+                      ? '超時提醒會正常運作。'
+                      : '你之前拒絕過通知權限，要到系統設定裡手動開啟。記錄功能不受影響。',
+                  );
+                })
+              }
+            />
+          </View>
+        </Section>
+
         <Section title="關於">
           <Text style={[styles.note, { color: t.textMuted }]}>
             寶寶日誌 v1{'\n'}
-            親餵計時器的「超時提醒」目前只在打開 APP 時顯示橫幅。
-            鎖屏也會推播的通知版留在第二階段——那需要處理 Android 的通知權限
-            與各家手機的省電機制。
+            資料只存在這台手機。兩人共用同一份紀錄需要一個同步伺服器，尚未實作。
           </Text>
         </Section>
       </ScrollView>

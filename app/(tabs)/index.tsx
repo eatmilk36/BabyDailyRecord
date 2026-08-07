@@ -15,6 +15,7 @@ import {
   logDiaper,
   logFeed,
   logPump,
+  NURSING_OVERDUE_MIN,
   startNursing,
   startNursingBoth,
   startSleep,
@@ -24,6 +25,7 @@ import {
   useMilkStashMl,
   useRecentEvents,
 } from '../../db/queries';
+import { cancelTimerNotification, scheduleNursingOverdue } from '../../lib/notifications';
 import { formatBabyAge, greeting } from '../../lib/time';
 import { useActionLock } from '../../lib/useActionLock';
 import { useNow } from '../../lib/useNow';
@@ -88,13 +90,18 @@ export default function Home() {
   function handleStartNursing(babyId: string) {
     // 直接採用輪替建議，這樣「開始親餵」仍然是一鍵
     return lock(async () => {
-      await startNursing(babyId, suggestNextSide(events, babyId));
+      const id = await startNursing(babyId, suggestNextSide(events, babyId));
+      // 排一則本地通知當守護。第一次會跳權限請求；被拒絕就只剩 APP 內橫幅，
+      // 記錄本身完全不受影響，所以不擋流程也不報錯。
+      const name = babies.find((b) => b.id === babyId)?.name ?? '寶寶';
+      void scheduleNursingOverdue(id, NURSING_OVERDUE_MIN, name);
     });
   }
 
   function handleStopNursing(eventId: string) {
     return lock(async () => {
       await endNursing(eventId);
+      void cancelTimerNotification(eventId);
       // 結束後開彈窗，讓你能立刻修正時長（忘記按結束的補救）
       router.push(`/event/${eventId}`);
     });
@@ -131,11 +138,24 @@ export default function Home() {
   function handleTandemNursing() {
     return lock(async () => {
       if (tandemSessionId) {
+        // 通知 id 用的是 sessionId，取消時必須用同一個值 ——
+        // 用別的（例如時間戳）就永遠對不上，通知照響
+        void cancelTimerNotification(tandemSessionId);
         await endNursingSession(tandemSessionId);
         router.push(`/session/${tandemSessionId}`);
         return;
       }
-      await startNursingBoth(babyIds, suggestNextSide(events, babyIds[0]) ?? 'left');
+      const sessionId = await startNursingBoth(
+        babyIds,
+        suggestNextSide(events, babyIds[0]) ?? 'left',
+      );
+      // 同時哺餵只排一則 —— 兩則同時響是噪音，而內容是一樣的。
+      // 用 sessionId 當通知 id，結束時才取消得掉。
+      void scheduleNursingOverdue(
+        sessionId,
+        NURSING_OVERDUE_MIN,
+        babies.map((b) => b.name).join('、'),
+      );
     });
   }
 
