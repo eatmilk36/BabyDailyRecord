@@ -485,15 +485,37 @@ npm run emu
 
 驗證：Metro 改綁 `127.0.0.1`，`Android Bundled 2545ms (1943 modules)` 走 adb reverse 成功。
 
-**2. adb server 會卡死，症狀會偽裝成別的問題**
+**2. adb server 反覆卡死 —— 根因是 Android Studio，不是 adb**
 
-`adb devices` 無回應時，Expo 的 `--localhost` 模式（需要先跑 `adb reverse`）會停在「Starting Metro Bundler」不動，並每 10 秒重試堆積 adb 行程（實測累積到 51 個）。真正的錯誤是 `adb start-server` 回 `protocol fault (couldn't read status): connection reset`。
+**症狀**：`adb devices` 無回應。Expo 的 `--localhost` 模式（需要先跑 `adb reverse`）會停在「Starting Metro Bundler」不動。`adb start-server` 回 `protocol fault (couldn't read status): connection reset`。清理之後過一陣子又會發生。
 
-處理方式：
+**排查過程與結論**：
+
+| 查證 | 結果 |
+|---|---|
+| 機器上的 adb.exe 數量 | **1 個**（SDK 內的）→ 不是版本衝突 |
+| adb server 是否活著 | **活著且在 Listen** → 不是 server 掛掉 |
+| 5037 的連線數 | **77 條 Established/CloseWait 掛著沒關** ← 真正的問題 |
+| 堆積的 adb 在跑什麼 | 幾乎全部是 `adb -s emulator-5554 shell dumpsys package com.google.android.gms` |
+| 這些 adb 的啟動時間 | **精準每 10 秒一個** |
+| Android Studio | **正在跑，已開兩天** |
+
+**根因**：Android Studio 的 Device Manager／Running Devices 面板每 10 秒透過 adb 檢查一次 Google Play 服務版本（為了顯示「Play Store 可更新」提示），而這些連線不會被關閉。累積到約 70 條後 adb server 就再也回應不了。
+
+**根本解法：這個專案不需要 Android Studio，把它關掉。**
+
+它現在是 Expo/React Native 專案 —— 沒有 Gradle、沒有 `android/` 目錄。當初開 Android Studio 只是為了建立 AVD；AVD 建好之後啟動模擬器用命令列就行：
+
 ```
-taskkill /F /IM adb.exe /T
-adb start-server
-adb devices          # 等它從 authorizing 變成 device
+npm run emu:boot      # 啟動模擬器（不需要 Android Studio）
+npm run emu           # 起 dev server 並開啟 APP
+```
+
+只有以下情況才需要再開 Android Studio：建立／刪除 AVD、下載新的系統映像。用完就關。
+
+**萬一又卡住**（例如又開了 Android Studio）：
+```
+npm run adb:fix       # 砍掉所有 adb 行程 + 重啟 server + 列出裝置
 ```
 
 ### 模擬器：螢幕鍵盤不跳出來（兩個獨立原因，都已解）

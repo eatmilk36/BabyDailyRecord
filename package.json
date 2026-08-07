@@ -35,7 +35,9 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
+    "emu:boot": "\"%LOCALAPPDATA%\\Android\\Sdk\\emulator\\emulator.exe\" -avd Pixel_8_Pro",
     "emu": "cross-env NODE_OPTIONS=--dns-result-order=ipv4first expo start --localhost --android",
+    "adb:fix": "taskkill /F /IM adb.exe /T & \"%LOCALAPPDATA%\\Android\\Sdk\\platform-tools\\adb.exe\" start-server & \"%LOCALAPPDATA%\\Android\\Sdk\\platform-tools\\adb.exe\" devices",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "db:generate": "drizzle-kit generate",
