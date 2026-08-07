@@ -1,7 +1,7 @@
 import { isValid, parseISO } from 'date-fns';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip } from '../../components/Chip';
 import { SlimButton } from '../../components/SlimButton';
 import { NURSING_OVERDUE_MIN, updateBaby, useBabies } from '../../db/queries';
@@ -11,7 +11,7 @@ import { exportCsv, exportJson } from '../../lib/export';
 import { importJson } from '../../lib/import';
 import { SEX_LABEL } from '../../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../../lib/time';
-import { fontSize, radius, spacing } from '../../theme/colors';
+import { fontSize, radius, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
 /**
@@ -23,6 +23,7 @@ import { useTheme } from '../../theme/useTheme';
 export default function Settings() {
   const t = useTheme();
   const { babies } = useBabies();
+  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState<string | null>(null);
 
   async function run(label: string, fn: () => Promise<void>) {
@@ -55,7 +56,16 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      {/* 下緣留白要含 tab bar 高度 + safe-area。這頁是唯一漏掉的，
+          結果頁尾的「測試通知權限」按鈕和「關於」文字被不透明的 tab bar 永久蓋住，
+          而且已經捲到底沒辦法再往上捲。 */}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: TAB_BAR_HEIGHT + insets.bottom + spacing.xxl },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={[styles.title, { color: t.text }]}>設定</Text>
 
         <Section title="寶寶">

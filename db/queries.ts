@@ -164,7 +164,14 @@ export type GrowthPoint = {
   headMm: number | null;
 };
 
-/** 某寶的生長序列，舊到新。傳進來的清單要是 useGrowthEvents 的輸出（已遞增排序）。 */
+/**
+ * 某寶的生長序列，舊到新。
+ *
+ * ⚠️ 這一支是上面區塊註解的【例外】：它要的是 useGrowthEvents 的輸出（舊到新），
+ * 不是 useRecentEvents（新到舊）。傳錯不會報錯也不會 crash，只會把序列整條反轉，
+ * 於是 GrowthChart 取 pts[pts.length - 1] 當「最新值」時拿到最舊的一筆 ——
+ * 而那個數字是要拿給醫生看的。
+ */
 export function growthSeriesOf(list: BabyEvent[], babyId: string): GrowthPoint[] {
   return list
     .filter((e) => e.babyId === babyId && e.type === 'growth')
@@ -176,9 +183,17 @@ export function growthSeriesOf(list: BabyEvent[], babyId: string): GrowthPoint[]
     }));
 }
 
-/** 全部進行中的親餵計時（同時哺餵會有兩筆）。 */
+/**
+ * 全部進行中的親餵計時（同時哺餵會有兩筆）。
+ *
+ * ⚠️ type === 'feed' 這個條件是必要的，不是防禦性寫法。
+ * 少了它，進行中的【睡眠】也會被算成進行中的親餵：睡眠的 sessionId 是 null，
+ * 而它的 occurredAt 最新所以排在最前面，於是首頁 index.tsx 判斷同時哺餵時
+ * actives[0].sessionId 變成 null → tandemSessionId 消失 →「結束同時哺餵」
+ * 退回「同時親餵」→ 再按一次就【又開一組計時器】，產生這個 APP 最想避免的重複紀錄。
+ */
 export function allActiveNursing(list: BabyEvent[]): BabyEvent[] {
-  return list.filter((e) => e.status === 'active');
+  return list.filter((e) => e.status === 'active' && e.type === 'feed');
 }
 
 /**

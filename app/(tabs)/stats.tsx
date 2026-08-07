@@ -192,8 +192,10 @@ function DayBars({
   const t = useTheme();
   const max = Math.max(...values, 1);
   const total = values.reduce((a, b) => a + b, 0);
-  const nonZero = values.filter((v) => v > 0);
-  const avg = nonZero.length > 0 ? Math.round(total / nonZero.length) : 0;
+  // 分母是【整個視窗的天數】，不是有資料的天數。
+  // 原本除以 nonZero.length 會系統性高估：14 天裡只記到 4 天共 2000 ml，
+  // 會顯示「平均 500」而不是 143。這個數字是要拿給醫生看的，不能虛報。
+  const avg = Math.round(total / values.length);
 
   return (
     <View style={styles.barsWrap}>

@@ -4,7 +4,7 @@ import { fontSize } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
 /**
- * 底部三個 tab。放在底部是為了拇指可及——單手抱寶寶時你只有一根拇指能動。
+ * 底部四個 tab。放在底部是為了拇指可及——單手抱寶寶時你只有一根拇指能動。
  * 圖示用 emoji 而不是圖示字型：不用多裝套件，而且跟溫馨風格一致。
  *
  * ⚠️ 這裡刻意【只設顏色，不設高度與內距】。

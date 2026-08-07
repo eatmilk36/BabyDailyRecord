@@ -142,12 +142,24 @@ function DiaperFields({ event, tint, onPatch }: Props) {
               onPatch(
                 event.diaperKind === k
                   ? { diaperKind: null, stoolCard: null }
-                  : { diaperKind: k },
+                  : // 改成純小便時要一起清掉大便卡編號。否則之前選過的編號會留在
+                    // 資料庫裡：UI 上跟著 showStool 一起消失，但紀錄頁仍印「尿 · 大便卡 3 ⚠」，
+                    // 匯出給醫生的 CSV 也照樣帶著膽道閉鎖警示，而你沒有任何介面能清掉它。
+                    { diaperKind: k, ...(k === 'pee' ? { stoolCard: null } : null) },
               )
             }
           />
         ))}
       </Section>
+
+      {/* 這行提示必須在 showStool 【外面】。
+          從首頁按「尿布」建立的紀錄 diaperKind 是 null，大便卡整區不會出現；
+          如果連「要先選便」的說明也關在門後，使用者就永遠不會知道要點哪裡才展開。 */}
+      {showStool ? null : (
+        <Text style={[styles.note, { color: t.textMuted }]}>
+          選「便」或「尿+便」會展開九色大便卡，可以記下大便顏色編號。
+        </Text>
+      )}
 
       {showStool ? (
         <View style={styles.stoolBlock}>
