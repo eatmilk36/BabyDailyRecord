@@ -100,6 +100,15 @@ export const radius = {
   pill: 999,
 } as const;
 
+/**
+ * 底部 tab bar 的高度（不含 safe-area inset）。
+ *
+ * 集中成一個常數，因為 tab 佈局和每個畫面的 ScrollView 下緣留白都要用到它 ——
+ * 兩邊各寫死一次的話，改了一邊就會出現「內容被 tab 切掉」的 bug
+ * （實機截圖就抓到過：首頁的「兩個一起」那排被切掉一半）。
+ */
+export const TAB_BAR_HEIGHT = 64;
+
 export const fontSize = {
   xs: 12,
   sm: 14,

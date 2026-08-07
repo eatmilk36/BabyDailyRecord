@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lt } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { db } from './client';
 import {
@@ -62,6 +62,31 @@ export function useRecentEvents() {
   return { events: data as BabyEvent[], error, loaded: updatedAt !== undefined };
 }
 
+/**
+ * 某一天的事件（紀錄頁的日期導覽用），新到舊。
+ *
+ * ⚠️ 這是全專案唯一帶參數的 live query，所以【必須顯式傳 deps】。
+ * useLiveQuery 的 deps 預設是 []，不傳的話換日期時查詢不會重跑 ——
+ * 不會壞掉，但會靜默給你前一天的資料，這種 bug 最難查。
+ */
+export function useEventsForDay(dayStart: number) {
+  const { data, error, updatedAt } = useLiveQuery(
+    db
+      .select()
+      .from(events)
+      .where(
+        and(
+          isNull(events.deletedAt),
+          gte(events.occurredAt, dayStart),
+          lt(events.occurredAt, dayStart + 86_400_000),
+        ),
+      )
+      .orderBy(desc(events.occurredAt)),
+    [dayStart],
+  );
+  return { events: data as BabyEvent[], error, loaded: updatedAt !== undefined };
+}
+
 // ---------------------------------------------------------------------------
 // 推導（純函式）
 // 全部假設傳進來的 list 是【新到舊】排序，也就是 useRecentEvents 的輸出。
@@ -112,24 +137,35 @@ export type TodayStats = {
   poopCount: number;
 };
 
-/** 某寶今天的統計。雙胞胎最重要的就是分開看。 */
+/**
+ * 某寶在【傳進來的這批事件】裡的統計，不再自己過濾日期。
+ * 這樣同一個函式可以算「今天」也可以算「紀錄頁選定的那一天」。
+ */
+export function statsOf(list: BabyEvent[], babyId: string): TodayStats {
+  const mine = list.filter((e) => e.babyId === babyId);
+
+  return {
+    feedCount: mine.filter((e) => e.type === 'feed' && e.status === 'done').length,
+    totalMl: mine.reduce((sum, e) => sum + (e.amountMl ?? 0), 0),
+    nursingMin: mine.reduce((sum, e) => sum + (e.durationMin ?? 0), 0),
+    diaperCount: mine.filter((e) => e.type === 'diaper').length,
+    poopCount: mine.filter(
+      (e) => e.type === 'diaper' && (e.diaperKind === 'poop' || e.diaperKind === 'both'),
+    ).length,
+  };
+}
+
+/** 某寶今天的統計（首頁用）。雙胞胎最重要的就是分開看。 */
 export function todayStats(
   list: BabyEvent[],
   babyId: string,
   now: number = Date.now(),
 ): TodayStats {
   const from = startOfToday(now);
-  const today = list.filter((e) => e.babyId === babyId && e.occurredAt >= from);
-
-  return {
-    feedCount: today.filter((e) => e.type === 'feed' && e.status === 'done').length,
-    totalMl: today.reduce((sum, e) => sum + (e.amountMl ?? 0), 0),
-    nursingMin: today.reduce((sum, e) => sum + (e.durationMin ?? 0), 0),
-    diaperCount: today.filter((e) => e.type === 'diaper').length,
-    poopCount: today.filter(
-      (e) => e.type === 'diaper' && (e.diaperKind === 'poop' || e.diaperKind === 'both'),
-    ).length,
-  };
+  return statsOf(
+    list.filter((e) => e.occurredAt >= from),
+    babyId,
+  );
 }
 
 /**

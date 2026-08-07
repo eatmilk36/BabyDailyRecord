@@ -4,13 +4,17 @@ import { fontSize, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
 import { useTheme } from '../theme/useTheme';
 
-type Props = { stats: TodayStats };
+type Props = {
+  stats: TodayStats;
+  /** 前綴文字。首頁是「今天」，紀錄頁換成該日日期 */
+  label?: string;
+};
 
 /**
- * 某寶今天的摘要。
+ * 某寶某一天的摘要。
  * 雙胞胎一定要分開看——體重與攝入量的差異是回診重點。
  */
-export function TodaySummary({ stats }: Props) {
+export function TodaySummary({ stats, label = '今天' }: Props) {
   const t = useTheme();
 
   const items: { value: string; label: string }[] = [
@@ -23,7 +27,7 @@ export function TodaySummary({ stats }: Props) {
 
   return (
     <View style={styles.row}>
-      <Text style={[styles.prefix, { color: t.textMuted }]}>今天</Text>
+      <Text style={[styles.prefix, { color: t.textMuted }]}>{label}</Text>
       {items.map((it, i) => (
         <View key={`${it.label}-${i}`} style={styles.item}>
           <Text style={[styles.value, { color: t.text }]}>{it.value}</Text>

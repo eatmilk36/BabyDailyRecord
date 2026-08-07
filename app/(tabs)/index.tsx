@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BabyCard } from '../../components/BabyCard';
 import { SlimButton } from '../../components/SlimButton';
 import {
@@ -22,7 +22,7 @@ import {
 import { formatBabyAge, greeting } from '../../lib/time';
 import { useActionLock } from '../../lib/useActionLock';
 import { useNow } from '../../lib/useNow';
-import { fontSize, spacing } from '../../theme/colors';
+import { fontSize, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
 /**
@@ -42,6 +42,7 @@ export default function Home() {
   const now = useNow(30_000);
   const { babies, loaded: babiesLoaded } = useBabies();
   const { events } = useRecentEvents();
+  const insets = useSafeAreaInsets();
   // 所有寫入動作共用一把鎖，防止「覺得沒反應所以再按一次」產生重複紀錄
   const lock = useActionLock();
 
@@ -113,7 +114,13 @@ export default function Home() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* 下緣留白要含 tab bar 高度 + safe-area，否則底部的「兩個一起」那排會被 tab 切掉 */}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: TAB_BAR_HEIGHT + insets.bottom + spacing.lg },
+        ]}
+      >
         <View style={styles.header}>
           <Text style={[styles.greeting, { color: t.text }]}>{greeting(now)}</Text>
           {babies[0] ? (

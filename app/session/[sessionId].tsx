@@ -1,6 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { EventFields } from '../../components/EventFields';
 import { SlimButton } from '../../components/SlimButton';
 import {
@@ -115,6 +123,9 @@ export default function SessionModal() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
+      <View style={[styles.savedBadge, { backgroundColor: `${t.diaper}26` }]}>
+        <Text style={[styles.savedText, { color: t.text }]}>✓ 兩筆都已儲存</Text>
+      </View>
       <Text style={[styles.hint, { color: t.textMuted }]}>
         改上面那位，下面會自動跟著變。手動改過下面那位之後就各自獨立。
       </Text>
@@ -145,9 +156,13 @@ export default function SessionModal() {
         );
       })}
 
+      {/* 同 event/[id]：主要動作是「完成」，刪除降級成小字 */}
       <View style={styles.footer}>
-        <SlimButton label="刪除這兩筆" tint={t.warn} onPress={handleDeleteAll} />
+        <SlimButton label="完成" onPress={() => router.back()} filled />
       </View>
+      <Pressable onPress={handleDeleteAll} style={styles.deleteLink} hitSlop={12}>
+        <Text style={[styles.deleteText, { color: t.warn }]}>刪除這兩筆紀錄</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -177,5 +192,14 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6 },
   title: { fontSize: fontSize.lg, fontWeight: '800', flex: 1 },
   badge: { fontSize: fontSize.xs, fontWeight: '700' },
+  savedBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+  },
+  savedText: { fontSize: fontSize.xs, fontWeight: '700' },
   footer: { flexDirection: 'row' },
+  deleteLink: { alignSelf: 'center', paddingVertical: spacing.md },
+  deleteText: { fontSize: fontSize.xs, fontWeight: '600', textDecorationLine: 'underline' },
 });

@@ -1,4 +1,5 @@
 import {
+  addDays,
   addMonths,
   differenceInCalendarDays,
   differenceInMonths,
@@ -85,6 +86,21 @@ export function formatDayLabel(key: string, now: number = Date.now()): string {
   if (diff === 1) return '昨天';
   const weekdays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
   return `${format(date, 'M月d日')} ${weekdays[date.getDay()]}`;
+}
+
+/** 把某一天的零點往前/往後移 N 天，回傳新的零點。日期導覽用。 */
+export function shiftDay(dayStartMs: number, deltaDays: number): number {
+  return startOfDay(addDays(new Date(dayStartMs), deltaDays)).getTime();
+}
+
+/** 兩個時間點是否落在同一天（依當地時區）。 */
+export function isSameDay(aMs: number, bMs: number): boolean {
+  return dayKey(aMs) === dayKey(bMs);
+}
+
+/** 「今天」/「昨天」/「8月3日 週一」——吃 epoch ms 的版本。 */
+export function formatDayLabelMs(ms: number, now: number = Date.now()): string {
+  return formatDayLabel(dayKey(ms), now);
 }
 
 /**

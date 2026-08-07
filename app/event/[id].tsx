@@ -1,6 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { EventFields } from '../../components/EventFields';
 import { SlimButton } from '../../components/SlimButton';
 import {
@@ -11,7 +19,8 @@ import {
   type EventPatch,
 } from '../../db/queries';
 import type { BabyEvent } from '../../db/schema';
-import { fontSize, spacing } from '../../theme/colors';
+import { formatClock } from '../../lib/time';
+import { fontSize, radius, spacing } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
 /**
@@ -52,7 +61,8 @@ export default function EventModal() {
 
   async function patch(p: EventPatch) {
     if (!event) return;
-    setEvent({ ...event, ...p } as BabyEvent);
+    // 本地也更新 updatedAt，這樣「已儲存 HH:mm」的指示會跟著動
+    setEvent({ ...event, ...p, updatedAt: Date.now() } as BabyEvent);
     await updateEvent(event.id, p);
   }
 
@@ -99,15 +109,25 @@ export default function EventModal() {
           {baby?.name ?? '寶寶'} · {event.type === 'feed' ? '喝奶' : '尿布'}
         </Text>
       </View>
+      <View style={[styles.savedBadge, { backgroundColor: `${t.diaper}26` }]}>
+        <Text style={[styles.savedText, { color: t.text }]}>
+          ✓ 已儲存 {formatClock(event.updatedAt)}
+        </Text>
+      </View>
       <Text style={[styles.hint, { color: t.textMuted }]}>
-        全部欄位都可以不填。改動會立刻存好，直接關掉就行。
+        全部欄位都可以不填，每次改動都已經存好了。
       </Text>
 
       <EventFields event={event} tint={tint} onPatch={patch} />
 
+      {/* 主要動作是「完成」而不是「儲存」——資料早就存好了，這顆只是讓你知道可以走了。
+          刪除刻意降級成小字：它是破壞性動作，不該是畫面上最顯眼的按鈕。 */}
       <View style={styles.footer}>
-        <SlimButton label="刪除這筆" tint={t.warn} onPress={handleDelete} />
+        <SlimButton label="完成" onPress={() => router.back()} filled />
       </View>
+      <Pressable onPress={handleDelete} style={styles.deleteLink} hitSlop={12}>
+        <Text style={[styles.deleteText, { color: t.warn }]}>刪除這筆紀錄</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -119,5 +139,14 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6 },
   title: { fontSize: fontSize.lg, fontWeight: '800' },
   hint: { fontSize: fontSize.xs, lineHeight: 18 },
+  savedBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+  },
+  savedText: { fontSize: fontSize.xs, fontWeight: '700' },
   footer: { marginTop: spacing.xl, flexDirection: 'row' },
+  deleteLink: { alignSelf: 'center', paddingVertical: spacing.md, marginTop: spacing.sm },
+  deleteText: { fontSize: fontSize.xs, fontWeight: '600', textDecorationLine: 'underline' },
 });
