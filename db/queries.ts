@@ -205,7 +205,7 @@ export function groupByDay(list: BabyEvent[]): DayGroup[] {
 // ---------------------------------------------------------------------------
 
 export async function createBabies(
-  input: { name: string; birthDate: string }[],
+  input: { name: string; birthDate: string; sex?: Baby['sex'] }[],
 ): Promise<void> {
   const now = Date.now();
   const colors: Baby['colorKey'][] = ['peach', 'mint'];
@@ -215,6 +215,7 @@ export async function createBabies(
       id: newId(),
       name: b.name,
       birthDate: b.birthDate,
+      sex: b.sex ?? null,
       colorKey: colors[i % colors.length],
       sortOrder: i,
       createdAt: now,
@@ -225,7 +226,7 @@ export async function createBabies(
 
 export async function updateBaby(
   id: string,
-  patch: Partial<Pick<Baby, 'name' | 'birthDate' | 'colorKey' | 'sortOrder'>>,
+  patch: Partial<Pick<Baby, 'name' | 'birthDate' | 'sex' | 'colorKey' | 'sortOrder'>>,
 ): Promise<void> {
   await db
     .update(babies)
@@ -402,6 +403,7 @@ export type EventPatch = Partial<
     | 'durationMin'
     | 'side'
     | 'diaperKind'
+    | 'stoolCard'
     | 'diaperColor'
     | 'note'
   >

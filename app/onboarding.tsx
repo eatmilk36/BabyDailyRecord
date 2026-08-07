@@ -11,8 +11,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Chip } from '../components/Chip';
 import { SlimButton } from '../components/SlimButton';
 import { createBabies } from '../db/queries';
+import type { Baby } from '../db/schema';
+import { SEX_LABEL } from '../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../lib/time';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { useTheme } from '../theme/useTheme';
@@ -31,6 +34,8 @@ export default function Onboarding() {
   const t = useTheme();
   const [nameA, setNameA] = useState('');
   const [nameB, setNameB] = useState('');
+  const [sexA, setSexA] = useState<Baby['sex']>(null);
+  const [sexB, setSexB] = useState<Baby['sex']>(null);
   const [birth, setBirth] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -43,8 +48,8 @@ export default function Onboarding() {
     setSaving(true);
     try {
       await createBabies([
-        { name: nameA.trim(), birthDate: birth },
-        { name: nameB.trim(), birthDate: birth },
+        { name: nameA.trim(), birthDate: birth, sex: sexA },
+        { name: nameB.trim(), birthDate: birth, sex: sexB },
       ]);
       router.replace('/');
     } finally {
@@ -65,7 +70,10 @@ export default function Onboarding() {
           </Text>
 
           <Field label="第一個寶寶" value={nameA} onChange={setNameA} placeholder="例如：小熊" />
+          <SexPicker value={sexA} onChange={setSexA} />
+
           <Field label="第二個寶寶" value={nameB} onChange={setNameB} placeholder="例如：小兔" />
+          <SexPicker value={sexB} onChange={setSexB} />
 
           <View style={styles.field}>
             <Text style={[styles.label, { color: t.textMuted }]}>出生日期（兩個寶寶共用）</Text>
@@ -113,6 +121,36 @@ export default function Onboarding() {
   );
 }
 
+/**
+ * 性別（選填）。
+ * 現在只是記錄，但之後做生長曲線時是必要的 —— WHO 的百分位表是分性別的。
+ * 再點一次已選的選項可以取消。
+ */
+function SexPicker({
+  value,
+  onChange,
+}: {
+  value: Baby['sex'];
+  onChange: (v: Baby['sex']) => void;
+}) {
+  const t = useTheme();
+  return (
+    <View style={styles.sexRow}>
+      <Text style={[styles.label, { color: t.textMuted }]}>性別（選填）</Text>
+      <View style={styles.sexChips}>
+        {(['boy', 'girl'] as const).map((s) => (
+          <Chip
+            key={s}
+            label={SEX_LABEL[s]}
+            selected={value === s}
+            onPress={() => onChange(value === s ? null : s)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function Field({
   label,
   value,
@@ -155,5 +193,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
   },
   hint: { fontSize: fontSize.xs },
+  sexRow: { gap: spacing.sm, marginTop: -spacing.sm },
+  sexChips: { flexDirection: 'row', gap: spacing.sm },
   actions: { marginTop: spacing.md, flexDirection: 'row' },
 });

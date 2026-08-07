@@ -14,7 +14,38 @@ export const DIAPER_COLOR_LABEL = {
   white: '白',
 } as const;
 
-/** 大便卡的實際顏色，用來畫色塊讓你對照 */
+/**
+ * 台灣兒童健康手冊「九色大便卡」。
+ *
+ * 1–6 號 = 異常（膽汁滯留，淡黃／灰白）→ 應儘速就醫
+ * 7–9 號 = 正常（黃／綠）
+ * 0      = 我們自己加的「說不準／介於之間」
+ *
+ * 為什麼加 0：衛福部的指引明確寫「最像 1–6 號，**或介於正常與異常之間**，
+ * 應儘速就醫」。如果只給 1–9，家長遇到說不準的情況會傾向猜一個正常值 ——
+ * 那正是最危險的漏接。給一個明確的「說不準」並讓它同樣觸發警示。
+ *
+ * ⚠️ 刻意【不在螢幕上畫色塊】：手機螢幕沒有色彩校準，而這個 APP 的使用情境
+ * 是半夜把亮度調到最低。在那種條件下比對螢幕顏色比不比對更危險。
+ * 正確流程是對照手冊裡的實體卡片，在 APP 裡點編號。
+ */
+export const STOOL_CARD_ABNORMAL = [1, 2, 3, 4, 5, 6] as const;
+export const STOOL_CARD_NORMAL = [7, 8, 9] as const;
+export const STOOL_CARD_UNSURE = 0;
+
+/** 0（說不準）與 1–6 都算需要就醫 */
+export function isStoolCardAbnormal(n: number | null | undefined): boolean {
+  return n != null && n <= 6;
+}
+
+export function stoolCardLabel(n: number): string {
+  return n === STOOL_CARD_UNSURE ? '說不準' : String(n);
+}
+
+export const STOOL_CARD_ALERT =
+  '這個顏色屬於需要注意的範圍。膽道閉鎖若能在出生 60 天內接受葛西手術，10 年存活率可達 73%，越早發現越好。\n\n請盡快帶寶寶就醫，並在滿 30 天打 B 肝疫苗時主動請醫護人員做大便顏色評估。\n\n兒童肝膽疾病防治基金會諮詢專線：(02) 2382-0886（平日 8:30–17:30）';
+
+/** 舊資料用的自由顏色欄位，已從 UI 移除，僅保留顯示 */
 export const DIAPER_COLOR_SWATCH = {
   yellow: '#E3C15C',
   green: '#7FA05C',
@@ -23,13 +54,7 @@ export const DIAPER_COLOR_SWATCH = {
   white: '#EFEAE2',
 } as const;
 
-/**
- * ⚠️ 白色/灰白色大便是【膽道閉鎖】的警訊，需要立刻就醫。
- * 這是這個 APP 記顏色唯一的正當理由，所以選到白色時一定要跳出提醒。
- */
-export const DIAPER_COLOR_ALERT: Partial<Record<keyof typeof DIAPER_COLOR_LABEL, string>> = {
-  white: '白色或灰白色大便是膽道閉鎖的警訊，請盡快帶寶寶就醫，並對照寶寶手冊的大便卡。',
-};
+export const SEX_LABEL = { boy: '男寶', girl: '女寶' } as const;
 
 /** 一行摘要：「配方 120ml」/「親餵 左 18 分」/「尿+便 · 黃」 */
 export function summarizeEvent(e: BabyEvent): string {
@@ -46,7 +71,13 @@ export function summarizeEvent(e: BabyEvent): string {
   }
 
   const parts: string[] = [e.diaperKind ? DIAPER_KIND_LABEL[e.diaperKind] : '尿布'];
-  if (e.diaperColor) parts.push(DIAPER_COLOR_LABEL[e.diaperColor]);
+  if (e.stoolCard != null) {
+    // 異常編號加上警示符號，這樣在紀錄列表裡掃一眼就看得到
+    parts.push(`大便卡 ${stoolCardLabel(e.stoolCard)}${isStoolCardAbnormal(e.stoolCard) ? ' ⚠' : ''}`);
+  } else if (e.diaperColor) {
+    // 舊資料
+    parts.push(DIAPER_COLOR_LABEL[e.diaperColor]);
+  }
   return parts.join(' · ');
 }
 

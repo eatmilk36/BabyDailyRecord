@@ -29,6 +29,12 @@ export const babies = sqliteTable('babies', {
   name: text('name').notNull(),
   /** 'YYYY-MM-DD'。雙胞胎通常同一天，但仍各存一筆 */
   birthDate: text('birth_date').notNull(),
+  /**
+   * 性別。可為 null（沒填）。
+   * 之後做生長曲線時是【必要】的 —— WHO 的身高體重百分位是分性別的表，
+   * 拿錯性別的表看百分位會得到誤導的結論。
+   */
+  sex: text('sex', { enum: ['boy', 'girl'] }),
   /** 固定代表色 key（見 theme/colors.ts）。半夜辨識靠顏色，不是讀名字 */
   colorKey: text('color_key', { enum: ['peach', 'mint'] }).notNull(),
   /** 首頁固定排列位置。位置本身也是辨識線索，所以不能讓它跳動 */
@@ -76,7 +82,19 @@ export const events = sqliteTable(
 
     // ---- 尿布欄位 ----
     diaperKind: text('diaper_kind', { enum: ['pee', 'poop', 'both'] }),
-    /** 對應台灣新生兒健康手冊的嬰兒大便卡。白色/灰白色是膽道閉鎖警訊，需立刻就醫 */
+    /**
+     * 台灣兒童健康手冊「九色大便卡」的編號 1–9。
+     * 1–6 = 異常（膽汁滯留，淡黃／灰白），7–9 = 正常（黃／綠）。
+     *
+     * 為什麼存編號而不是顏色：手機螢幕沒有色彩校準，而這個 APP 的使用情境
+     * 是半夜把亮度調到最低 —— 在螢幕上比對色塊比不比對更危險。
+     * 正確流程是家長對照手冊裡的【實體】卡片，在 APP 點下對應編號。
+     */
+    stoolCard: integer('stool_card'),
+    /**
+     * 舊的自由顏色欄位。已從 UI 移除，保留是為了不弄丟先前記的資料。
+     * 新紀錄請用 stoolCard。
+     */
     diaperColor: text('diaper_color', {
       enum: ['yellow', 'green', 'brown', 'black', 'white'],
     }),

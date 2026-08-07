@@ -6,9 +6,12 @@ import type { Baby, BabyEvent } from '../db/schema';
 import {
   DIAPER_COLOR_LABEL,
   DIAPER_KIND_LABEL,
+  isStoolCardAbnormal,
   METHOD_LABEL,
   MILK_LABEL,
+  SEX_LABEL,
   SIDE_LABEL,
+  stoolCardLabel,
 } from './labels';
 
 /**
@@ -47,15 +50,16 @@ export async function exportJson(): Promise<void> {
 /** 給醫生看的表（CSV）。只含未刪除的紀錄，欄位是中文表頭。 */
 export async function exportCsv(): Promise<void> {
   const { babies, events } = await dumpAll();
-  const nameById = new Map(babies.map((b) => [b.id, b.name]));
+  const babyById = new Map(babies.map((b) => [b.id, b]));
 
   const rows = events
     .filter((e) => e.deletedAt == null)
     .sort((a, b) => a.occurredAt - b.occurredAt)
-    .map((e) => toCsvRow(e, nameById));
+    .map((e) => toCsvRow(e, babyById));
 
   const header = [
     '寶寶',
+    '性別',
     '日期',
     '時間',
     '類型',
@@ -65,7 +69,9 @@ export async function exportCsv(): Promise<void> {
     '親餵分鐘',
     '哪一邊',
     '尿布類型',
-    '大便顏色',
+    '大便卡編號',
+    '大便卡異常',
+    '大便顏色(舊)',
     '備註',
   ];
 
@@ -75,10 +81,12 @@ export async function exportCsv(): Promise<void> {
   await shareText(`baby-log-${stamp()}.csv`, csv, 'text/csv');
 }
 
-function toCsvRow(e: BabyEvent, nameById: Map<string, string>): string[] {
+function toCsvRow(e: BabyEvent, babyById: Map<string, Baby>): string[] {
   const d = new Date(e.occurredAt);
+  const baby = babyById.get(e.babyId);
   return [
-    nameById.get(e.babyId) ?? e.babyId,
+    baby?.name ?? e.babyId,
+    baby?.sex ? SEX_LABEL[baby.sex] : '',
     format(d, 'yyyy-MM-dd'),
     format(d, 'HH:mm'),
     e.type === 'feed' ? '喝奶' : '尿布',
@@ -88,6 +96,9 @@ function toCsvRow(e: BabyEvent, nameById: Map<string, string>): string[] {
     e.durationMin != null ? String(e.durationMin) : '',
     e.side ? SIDE_LABEL[e.side] : '',
     e.diaperKind ? DIAPER_KIND_LABEL[e.diaperKind] : '',
+    e.stoolCard != null ? stoolCardLabel(e.stoolCard) : '',
+    // 獨立一欄標出異常，醫生掃 CSV 時不用自己記 1–6 的規則
+    isStoolCardAbnormal(e.stoolCard) ? '異常' : '',
     e.diaperColor ? DIAPER_COLOR_LABEL[e.diaperColor] : '',
     e.note ?? '',
   ];

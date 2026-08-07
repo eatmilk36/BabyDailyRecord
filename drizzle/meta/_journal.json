@@ -8,6 +8,13 @@
       "when": 1785914260754,
       "tag": "0000_heavy_victor_mancha",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786086456308,
+      "tag": "0001_flippant_eternals",
+      "breakpoints": true
     }
   ]
 }

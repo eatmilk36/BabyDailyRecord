@@ -21,6 +21,7 @@ const babySchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sex: z.enum(['boy', 'girl']).nullable().default(null),
   colorKey: z.enum(['peach', 'mint']),
   sortOrder: z.number().int(),
   createdAt: z.number().int(),
@@ -43,6 +44,8 @@ const eventSchema = z.object({
   durationMin: z.number().int().nullable().default(null),
   side: z.enum(['left', 'right', 'both']).nullable().default(null),
   diaperKind: z.enum(['pee', 'poop', 'both']).nullable().default(null),
+  // 九色大便卡編號 1–9，0 = 說不準
+  stoolCard: z.number().int().min(0).max(9).nullable().default(null),
   diaperColor: z.enum(['yellow', 'green', 'brown', 'black', 'white']).nullable().default(null),
   payload: z.record(z.string(), z.unknown()).nullable().default(null),
   note: z.string().nullable().default(null),

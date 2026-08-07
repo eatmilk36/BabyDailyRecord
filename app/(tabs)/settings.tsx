@@ -2,11 +2,13 @@ import { isValid, parseISO } from 'date-fns';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Chip } from '../../components/Chip';
 import { SlimButton } from '../../components/SlimButton';
 import { updateBaby, useBabies } from '../../db/queries';
 import type { Baby } from '../../db/schema';
 import { exportCsv, exportJson } from '../../lib/export';
 import { importJson } from '../../lib/import';
+import { SEX_LABEL } from '../../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../../lib/time';
 import { fontSize, radius, spacing } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
@@ -151,6 +153,19 @@ function BabyEditor({ baby }: { baby: Baby }) {
         autoCapitalize="none"
         style={[styles.input, { color: t.text, borderColor: t.cardBorder, backgroundColor: t.card }]}
       />
+
+      {/* 性別（選填）。之後做生長曲線時是必要的 —— WHO 百分位表是分性別的 */}
+      <View style={styles.sexChips}>
+        {(['boy', 'girl'] as const).map((s) => (
+          <Chip
+            key={s}
+            label={SEX_LABEL[s]}
+            tint={tone.base}
+            selected={baby.sex === s}
+            onPress={() => updateBaby(baby.id, { sex: baby.sex === s ? null : s })}
+          />
+        ))}
+      </View>
     </View>
   );
 }
@@ -178,6 +193,7 @@ const styles = StyleSheet.create({
   babyHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   dot: { width: 12, height: 12, borderRadius: 6 },
   babyAge: { fontSize: fontSize.xs, fontWeight: '600' },
+  sexChips: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   input: {
     borderWidth: 1,
     borderRadius: radius.md,

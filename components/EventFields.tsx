@@ -1,19 +1,22 @@
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import type { EventPatch } from '../db/queries';
-import type { BabyEvent, DiaperColor } from '../db/schema';
+import type { BabyEvent } from '../db/schema';
 import {
-  DIAPER_COLOR_ALERT,
-  DIAPER_COLOR_LABEL,
-  DIAPER_COLOR_SWATCH,
   DIAPER_KIND_LABEL,
   DURATION_PRESETS,
+  isStoolCardAbnormal,
   METHOD_LABEL,
   MILK_LABEL,
   ML_PRESETS,
   SIDE_LABEL,
+  STOOL_CARD_ABNORMAL,
+  STOOL_CARD_ALERT,
+  STOOL_CARD_NORMAL,
+  STOOL_CARD_UNSURE,
+  stoolCardLabel,
 } from '../lib/labels';
 import { formatClock } from '../lib/time';
-import { fontSize, spacing } from '../theme/colors';
+import { fontSize, radius, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
 import { useTheme } from '../theme/useTheme';
 import { AmountPicker } from './AmountPicker';
@@ -119,29 +122,51 @@ export function EventFields({ event, tint, onPatch }: Props) {
 
           {event.diaperKind === 'poop' || event.diaperKind === 'both' ? (
             <View style={styles.colorBlock}>
-              <Section label="顏色（選填）">
-                {(Object.keys(DIAPER_COLOR_LABEL) as DiaperColor[]).map((c) => (
+              <Text style={[styles.note, { color: t.textMuted }]}>
+                拿出寶寶手冊裡的「九色大便卡」，對照實體卡片後點下最接近的編號。
+                {'\n'}
+                手機螢幕沒有色彩校準（而你現在可能把亮度調到最低），所以這裡不放色塊。
+              </Text>
+
+              <Section label="正常（7–9）">
+                {STOOL_CARD_NORMAL.map((n) => (
                   <Chip
-                    key={c}
-                    label={DIAPER_COLOR_LABEL[c]}
-                    swatch={DIAPER_COLOR_SWATCH[c]}
-                    tint={tint}
-                    selected={event.diaperColor === c}
+                    key={n}
+                    label={stoolCardLabel(n)}
+                    tint={t.diaper}
+                    selected={event.stoolCard === n}
+                    onPress={() => onPatch({ stoolCard: event.stoolCard === n ? null : n })}
+                  />
+                ))}
+              </Section>
+
+              <Section label="需要注意（1–6）">
+                {[...STOOL_CARD_ABNORMAL, STOOL_CARD_UNSURE].map((n) => (
+                  <Chip
+                    key={n}
+                    label={stoolCardLabel(n)}
+                    tint={t.warn}
+                    selected={event.stoolCard === n}
                     onPress={() => {
-                      const clearing = event.diaperColor === c;
-                      onPatch({ diaperColor: clearing ? null : c });
-                      // 白色/灰白色便是膽道閉鎖警訊——這是記顏色唯一的正當理由
-                      const alertText = DIAPER_COLOR_ALERT[c];
-                      if (!clearing && alertText) {
-                        Alert.alert('請注意', alertText);
+                      const clearing = event.stoolCard === n;
+                      onPatch({ stoolCard: clearing ? null : n });
+                      // 1–6 號與「說不準」都要警示 —— 官方指引明確把「介於之間」也算進去
+                      if (!clearing && isStoolCardAbnormal(n)) {
+                        Alert.alert('請盡快就醫', STOOL_CARD_ALERT);
                       }
                     }}
                   />
                 ))}
               </Section>
-              <Text style={[styles.note, { color: t.textMuted }]}>
-                對照寶寶手冊的嬰兒大便卡。白色或灰白色需要盡快就醫。
-              </Text>
+
+              {isStoolCardAbnormal(event.stoolCard) ? (
+                <View style={[styles.alertBox, { backgroundColor: t.warnSoft, borderColor: t.warn }]}>
+                  <Text style={[styles.alertText, { color: t.warn }]}>
+                    ⚠ 這個編號需要就醫評估。滿 30 天打 B 肝疫苗時務必主動請醫護人員看大便顏色。
+                    {'\n'}兒童肝膽疾病防治基金會：(02) 2382-0886
+                  </Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
         </>
@@ -199,6 +224,12 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' },
   clock: { fontSize: fontSize.xl, fontFamily: numFont.hero },
-  colorBlock: { gap: spacing.sm },
+  colorBlock: { gap: spacing.md },
   note: { fontSize: fontSize.xs, lineHeight: 18 },
+  alertBox: {
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  alertText: { fontSize: fontSize.xs, fontWeight: '600', lineHeight: 19 },
 });
