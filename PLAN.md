@@ -500,11 +500,24 @@ npm run emu
 | 這些 adb 的啟動時間 | **精準每 10 秒一個** |
 | Android Studio | **正在跑，已開兩天** |
 
-**根因**：Android Studio 的 Device Manager／Running Devices 面板每 10 秒透過 adb 檢查一次 Google Play 服務版本（為了顯示「Play Store 可更新」提示），而這些連線不會被關閉。累積到約 70 條後 adb server 就再也回應不了。
+**⚠️ 第一次的判斷是錯的（保留紀錄以免重蹈）**：曾歸咎 Android Studio 的 Device Manager 面板。那個結論建立在混淆變數上 —— 檢查「關掉 Studio 後不再累積」的那一刻，模擬器也正好沒在跑。
 
-**根本解法：這個專案不需要 Android Studio，把它關掉。**
+**用控制變數重測後的真正根因**：
 
-它現在是 Expo/React Native 專案 —— 沒有 Gradle、沒有 `android/` 目錄。當初開 Android Studio 只是為了建立 AVD；AVD 建好之後啟動模擬器用命令列就行：
+| 條件 | adb 是否累積 |
+|---|---|
+| Studio 開 + 模擬器開 | 會 |
+| Studio **關** + 模擬器開 | **會**（38 行程 / 37 條 Established） |
+| Studio 關 + 模擬器**關** | **不會**（45 秒維持 0） |
+
+**來源是模擬器本身。** 這是 Play Store 版 AVD（`PlayStore.enabled=true`），模擬器為了顯示「Play Store 版本／可更新」資訊，每 10 秒自己開一條 adb 跑
+`dumpsys package com.google.android.gms`，而連線不關閉。累積到約 70 條後 adb server 就再也回應不了。
+
+**推論**：只要這個 Play Store AVD 在跑，adb 遲早會卡；不跑模擬器（例如改用實體手機開發）就完全不會發生。
+
+可能的緩解（未驗證）：把 `config.ini` 的 `PlayStore.enabled` 改成 `false`，或改用非 Play Store 映像（`google_apis` 而非 `google_apis_playstore`）的 AVD。後者的額外好處是可以 `adb root`，代價是沒有 Play 商店（就無法下載 Gboard 中文語言包）。
+
+Android Studio 雖然不是根因，但這個專案**確實不需要它**（Expo 專案沒有 Gradle 也沒有 `android/` 目錄，當初開它只是為了建 AVD）。啟動模擬器用命令列就行：
 
 ```
 npm run emu:boot      # 啟動模擬器（不需要 Android Studio）
