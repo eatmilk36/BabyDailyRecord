@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Chip } from '../../components/Chip';
 import { SlimButton } from '../../components/SlimButton';
 import { NURSING_OVERDUE_MIN, updateBaby, useBabies } from '../../db/queries';
+import { BUILD_NOTES, BUILD_TAG } from '../../lib/build';
 import { ensureNotificationPermission } from '../../lib/notifications';
 import type { Baby } from '../../db/schema';
 import { exportCsv, exportJson } from '../../lib/export';
@@ -144,6 +145,20 @@ export default function Settings() {
             寶寶日誌 v1{'\n'}
             資料只存在這台手機。兩人共用同一份紀錄需要一個同步伺服器，尚未實作。
           </Text>
+
+          {/* 版本標記。Expo Go 不會自己更新 bundle，所以「我看到的是新版還是舊版」
+              沒辦法從畫面猜。這一行就是答案。 */}
+          <View style={[styles.buildBox, { backgroundColor: t.card, borderColor: t.cardBorder }]}>
+            <Text style={[styles.buildTag, { color: t.text }]}>版本 {BUILD_TAG}</Text>
+            <Text style={[styles.note, { color: t.textMuted }]}>
+              這一版應該有：
+              {'\n'}
+              {BUILD_NOTES.map((n) => `· ${n}`).join('\n')}
+              {'\n\n'}
+              對不上就是 Expo Go 還在跑舊的 JS：搖手機叫出開發者選單按 Reload，
+              或強制關閉 Expo Go 後重新輸入網址載入。
+            </Text>
+          </View>
         </Section>
       </ScrollView>
     </SafeAreaView>
@@ -228,6 +243,13 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: fontSize.md, fontWeight: '800' },
   note: { fontSize: fontSize.xs, lineHeight: 19 },
   buttonRow: { flexDirection: 'row' },
+  buildBox: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  buildTag: { fontSize: fontSize.sm, fontWeight: '800' },
 
   babyCard: { borderRadius: radius.lg, borderWidth: 1, padding: spacing.lg, gap: spacing.sm },
   babyHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
