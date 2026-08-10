@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip } from '../../components/Chip';
 import { GrowthChart, type GrowthMetric } from '../../components/GrowthChart';
+import { QueryError } from '../../components/QueryError';
 import { SlimButton } from '../../components/SlimButton';
 import {
   growthSeriesOf,
@@ -40,10 +41,10 @@ export default function Stats() {
   const t = useTheme();
   const now = useNow(60_000);
   const insets = useSafeAreaInsets();
-  const { babies } = useBabies();
-  const { events } = useRecentEvents();
-  const { events: growth } = useGrowthEvents();
-  const { stash, pumped, used } = useMilkStashMl();
+  const { babies, error: babiesError } = useBabies();
+  const { events, error: eventsError } = useRecentEvents();
+  const { events: growth, error: growthError } = useGrowthEvents();
+  const { stash, pumped, used, error: stashError } = useMilkStashMl();
   const lock = useActionLock();
 
   const [metric, setMetric] = useState<GrowthMetric>('weightG');
@@ -103,6 +104,15 @@ export default function Stats() {
         ]}
       >
         <Text style={[styles.title, { color: t.text }]}>統計</Text>
+
+        {/* 這一頁失敗時最危險：babies=[] 讓趨勢卡與記錄按鈕整批消失、
+            stash 被 `?? 0` 填成 0、growth=[] 讓曲線顯示「還沒有這項測量的紀錄」。
+            三個 fallback 疊起來是一個排版完整、文案通順、看起來就是
+            「功能有但還沒記過資料」的畫面 —— 完全看不出查詢其實失敗了。 */}
+        <QueryError error={babiesError} what="寶寶資料" />
+        <QueryError error={eventsError} what="最近的紀錄" />
+        <QueryError error={growthError} what="生長紀錄" />
+        <QueryError error={stashError} what="母乳庫存" />
 
         {/* ---- 母乳庫存 ---- */}
         <View style={[styles.card, { backgroundColor: t.card, borderColor: t.cardBorder }]}>

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventRow } from '../../components/EventRow';
+import { QueryError } from '../../components/QueryError';
 import { SlimButton } from '../../components/SlimButton';
 import { TodaySummary } from '../../components/TodaySummary';
 import {
@@ -34,11 +35,11 @@ export default function History() {
   const t = useTheme();
   const now = useNow(60_000);
   const insets = useSafeAreaInsets();
-  const { babies } = useBabies();
+  const { babies, error: babiesError } = useBabies();
 
   const todayStart = startOfToday(now);
   const [dayStart, setDayStart] = useState(todayStart);
-  const { events, loaded } = useEventsForDay(dayStart);
+  const { events, loaded, error: eventsError } = useEventsForDay(dayStart);
 
   /**
    * 過了午夜要自動跟著跳到新的今天。
@@ -157,6 +158,12 @@ export default function History() {
           { paddingBottom: TAB_BAR_HEIGHT + insets.bottom + spacing.xxl },
         ]}
       >
+        {/* 查詢失敗時 loaded 永遠是 false，所以下面那個「今天還沒有紀錄」
+            的空狀態被 `loaded &&` 擋住，events.map 也印不出東西 ——
+            結果是標題底下一片【全白】，比顯示錯誤更難診斷。 */}
+        <QueryError error={babiesError} what="寶寶資料" />
+        <QueryError error={eventsError} what="這一天的紀錄" />
+
         {/* 分寶單日總結——回診時醫生問的就是這幾個數字 */}
         {babies.map((b) => (
           <View
