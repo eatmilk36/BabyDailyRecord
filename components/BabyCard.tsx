@@ -124,11 +124,18 @@ export function BabyCard({
             <SlimButton
               label={suggestedSide ? `親餵 · 建議 ${SIDE_LABEL[suggestedSide]}` : '開始親餵'}
               tint={tone.base}
+              // 邊框用 base 保留顏色識別，文字用 on 才讀得清楚（base 疊在 soft 上只有 1.7:1）
+              labelColor={tone.on}
               onPress={onStartNursing}
             />
           ) : null}
           {!activeSleep ? (
-            <SlimButton label="🌙 開始睡覺" tint={tone.base} onPress={onStartSleep} />
+            <SlimButton
+              label="🌙 開始睡覺"
+              tint={tone.base}
+              labelColor={tone.on}
+              onPress={onStartSleep}
+            />
           ) : null}
         </View>
       ) : null}

@@ -187,6 +187,9 @@ function DiaperFields({ event, tint, onPatch }: Props) {
                 key={n}
                 label={stoolCardLabel(n)}
                 tint={t.warn}
+                // 還沒選中就要看得出這一組不一樣。原本「正常 7–9」和「需要注意 1–6」
+                // 的 chip 完全同色，嚴重程度只有選中後才顯現 —— 這是膽道閉鎖的篩檢介面。
+                borderTint={t.warn}
                 selected={event.stoolCard === n}
                 onPress={() => {
                   const clearing = event.stoolCard === n;
