@@ -111,8 +111,12 @@ export function summarizeEvent(e: BabyEvent): string {
 
   if (e.type === 'feed') {
     const parts: string[] = [];
+    // 餵法與奶種【都要】顯示，不是二選一。
+    // 原本是 `if (milk) ... else if (method) ...`，所以只要填了奶種，
+    // 餵法就被吃掉 —— 一筆親餵母奶會顯示成「母奶 18 分」，
+    // 完全看不出是親餵；而瓶餵母奶也是從「母奶」開頭，兩者無從分辨。
+    if (e.method) parts.push(METHOD_LABEL[e.method]);
     if (e.milk) parts.push(MILK_LABEL[e.milk]);
-    else if (e.method) parts.push(METHOD_LABEL[e.method]);
 
     if (e.method === 'nursing' && e.side) parts.push(SIDE_LABEL[e.side]);
     if (e.amountMl) parts.push(`${e.amountMl}ml`);
@@ -123,13 +127,17 @@ export function summarizeEvent(e: BabyEvent): string {
 
   const parts: string[] = [e.diaperKind ? DIAPER_KIND_LABEL[e.diaperKind] : '尿布'];
   if (e.stoolCard != null) {
-    // 異常編號加上警示符號，這樣在紀錄列表裡掃一眼就看得到
-    parts.push(`大便卡 ${stoolCardLabel(e.stoolCard)}${isStoolCardAbnormal(e.stoolCard) ? ' ⚠' : ''}`);
+    parts.push(`大便卡 ${stoolCardLabel(e.stoolCard)}`);
   } else if (e.diaperColor) {
     // 舊資料
     parts.push(DIAPER_COLOR_LABEL[e.diaperColor]);
   }
-  return parts.join(' · ');
+  const summary = parts.join(' · ');
+
+  // ⚠️ 警示符號放在【最前面】，不是最後面。
+  // 紀錄列的摘要有行數限制，排在字串尾端的東西是第一個被裁掉的 ——
+  // 而這是膽道閉鎖的警示，是整個列表裡最不能被裁掉的一個字元。
+  return isStoolCardAbnormal(e.stoolCard) ? `⚠ ${summary}` : summary;
 }
 
 /** ml 快選按鈕的數字。刻意不叫鍵盤——半夜單手、腦袋糊，打字是災難。 */
