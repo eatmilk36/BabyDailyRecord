@@ -45,3 +45,6 @@ yarn-error.*
 # 還指向已經移除的 Gradle 專案結構，而且每台機器各自不同，不該進版控。
 .idea/
 
+
+# Claude Code 的暫存 worktree，不是專案的一部分
+.claude/worktrees/
