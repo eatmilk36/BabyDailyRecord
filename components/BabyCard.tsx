@@ -101,19 +101,24 @@ export function BabyCard({
 
       {activeNursing ? (
         <View style={styles.block}>
-          <NursingTimerBanner event={activeNursing} tint={tone.base} onStop={onStopNursing} />
+          <NursingTimerBanner
+            event={activeNursing}
+            tint={tone.base}
+            onStop={onStopNursing}
+            kind="nursing"
+          />
         </View>
       ) : null}
 
       {activeSleep ? (
         <View style={styles.block}>
+          {/* 外觀、標題、按鈕文字全部由 kind 決定，呼叫端不可能組出
+              「標題寫睡覺但按鈕寫結束親餵」這種不一致 */}
           <NursingTimerBanner
             event={activeSleep}
             tint={tone.base}
             onStop={onStopSleep}
-            title="正在睡"
-            // 睡眠不做超時警示：寶寶睡 3 小時是好事，不該被標紅
-            overdueMin={null}
+            kind="sleep"
           />
         </View>
       ) : null}
