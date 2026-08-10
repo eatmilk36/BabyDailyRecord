@@ -26,15 +26,25 @@ import { useTheme } from '../../theme/useTheme';
 /**
  * 雙寶紀錄的補充彈窗（「都餵了」/「都換了」/「同時親餵」之後開啟）。
  *
- * ── 連動規則 ──
- * 雙胞胎大多數時候兩邊數值一樣（都泡 120ml、都是尿），所以改上面那寶時
- * 下面那寶自動跟著變。但一旦你【手動改過】下面那寶，它就脫離連動，
- * 之後改上面不會再覆蓋它——因為雙胞胎常常一個吃得多一個吃得少，
- * 而體重與攝入量的差異正是回診重點，不能被連動蓋掉。
+ * ── 連動規則（實際行為，不是原本註解宣稱的行為）──
  *
- * 兩個欄位刻意不連動：
- *   occurredAt — 反過來，一定同步（同一個 session 就是同一個時刻）
- *   side       — 永不連動（同時哺餵時左右邊必須互斥）
+ * 雙胞胎大多數時候兩邊數值一樣（都泡 120ml、都是尿），所以改一張卡時
+ * 另一張自動跟著變。但這件事有幾個容易誤解的地方，原本畫面上只寫了
+ * 「改上面那位，下面會自動跟著變」，而那句話有三處不準：
+ *
+ * 1. 連動是【雙向】的。patchAt 標記的是「你剛改的那張」，然後只要另一張
+ *    還沒被標記就把值鏡射過去 —— 所以改【下面】那張會反過來蓋掉上面那張。
+ * 2. occurredAt 是【無條件】同步的，就算兩張都已經標成不跟著變也一樣
+ *    （同一個 session 本來就是同一個時刻，這是刻意的）。
+ * 3. 「不跟著變」一旦成立就永遠回不去，而它的觸發門檻是「改任何一個欄位」。
+ *
+ * 現在改成：每張卡都【明講自己現在的狀態】，而且可以按一下改回跟著變。
+ *
+ * 永不連動的欄位：
+ *   side      — 同時哺餵時左右邊必須互斥
+ *   stoolCard — ⚠️ 大便卡編號是【對這一個寶寶的醫療觀察】。自動複製到
+ *               另一寶等於憑空生出一筆沒人看過的觀察，而它會進到給醫生的
+ *               CSV、也會觸發膽道閉鎖警示。這個欄位絕對不能連動。
  */
 export default function SessionModal() {
   const t = useTheme();
@@ -88,6 +98,20 @@ export default function SessionModal() {
     );
 
     for (const u of updates) await updateEvent(u.id, u.patch);
+  }
+
+  /**
+   * 把一張卡改回「會跟著另一位變」。
+   *
+   * 原本 touched 只會變 true、永遠回不去，而它的觸發門檻是「改任何一個欄位」——
+   * 一次誤觸就永久脫離連動，而且畫面上沒有任何辦法救回來。
+   */
+  function relink(id: string) {
+    setTouched((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   /**
@@ -158,7 +182,13 @@ export default function SessionModal() {
         <Text style={[styles.savedText, { color: t.text }]}>✓ 兩筆都已儲存</Text>
       </View>
       <Text style={[styles.hint, { color: t.textMuted }]}>
-        改上面那位，下面會自動跟著變。手動改過下面那位之後就各自獨立。
+        改其中一位，另一位會自動跟著變（不分上下，兩邊都會）。
+        {'\n'}
+        改過的那一位就不再跟著變，卡片上會標出來，可以按一下改回去。
+        {'\n'}
+        <Text style={{ fontWeight: '800' }}>時間永遠兩邊同步</Text>
+        ；<Text style={{ fontWeight: '800' }}>左右邊與大便卡編號永遠不連動</Text>
+        —— 那是各自的觀察，不該被複製。
       </Text>
 
       {items.map((event, index) => {
@@ -183,9 +213,18 @@ export default function SessionModal() {
             <View style={styles.header}>
               <View style={[styles.dot, { backgroundColor: tint }]} />
               <Text style={[styles.title, { color: t.text }]}>{baby?.name ?? '寶寶'}</Text>
+              {/* 兩種狀態【都要】顯示。
+                  原本只在 touched 時顯示「已獨立」，所以沒標記的那張卡上
+                  看不出「我會被另一張蓋掉」—— 而那正是使用者需要知道的事。
+                  而且「已獨立」貼在你剛改的那張，跟使用者感知的「另一張跟著變了」
+                  剛好相反，讀起來像貼錯了。 */}
               {touched[event.id] ? (
-                <Text style={[styles.badge, { color: t.textMuted }]}>已獨立</Text>
-              ) : null}
+                <Pressable onPress={() => relink(event.id)} hitSlop={10}>
+                  <Text style={[styles.badge, { color: t.primary }]}>不跟著變 · 改回去</Text>
+                </Pressable>
+              ) : (
+                <Text style={[styles.badge, { color: t.textMuted }]}>會跟著另一位變</Text>
+              )}
             </View>
 
             <EventFields event={event} tint={tint} onPatch={(p) => patchAt(index, p)} />
