@@ -58,13 +58,28 @@ export function BabyCard({
   const feedDue = !activeNursing && isFeedDue(lastFeed, now);
 
   return (
-    <View style={[styles.card, { backgroundColor: tone.soft, borderColor: t.cardBorder }]}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: tone.soft,
+          borderColor: t.cardBorder,
+          // 左側粗色條：這是「這張卡是哪一寶」最強的訊號。
+          // 卡片底色只能是【淡】的（要讓深色文字讀得下去），所以兩張卡的亮度
+          // 本質上拉不開太多；一條飽和的實色卻不受這個限制，而且面積夠大，
+          // 半夜眼睛沒對焦時先看到的就是它。
+          borderLeftColor: tone.base,
+        },
+      ]}
+    >
       <View style={styles.header}>
         <View style={[styles.dot, { backgroundColor: tone.base }]} />
         <Text style={[styles.name, { color: t.text }]}>{baby.name}</Text>
         {feedDue ? (
           <View style={[styles.badge, { backgroundColor: t.warn }]}>
-            <Text style={styles.badgeText}>該餵了</Text>
+            {/* 走 theme 而不是寫死白色：深色主題的 warn 是亮橘，白字只有 2.25:1 ——
+                全卡片最看不清的偏偏是唯一的警示 */}
+            <Text style={[styles.badgeText, { color: t.onWarn }]}>該餵了</Text>
           </View>
         ) : null}
       </View>
@@ -170,6 +185,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     borderWidth: 1,
+    // 只加左邊，不動上下——上下改了會影響卡片高度與捲動留白的估算
+    borderLeftWidth: 6,
     padding: spacing.lg,
     gap: spacing.sm,
   },
@@ -181,7 +198,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radius.pill,
   },
-  badgeText: { color: '#FFFFFF', fontSize: fontSize.xs, fontWeight: '800' },
+  badgeText: { fontSize: fontSize.xs, fontWeight: '800' },
 
   lastLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   lastEmoji: { fontSize: 20 },

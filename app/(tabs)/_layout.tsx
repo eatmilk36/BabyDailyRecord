@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
-import { fontSize, radius, spacing } from '../../theme/colors';
+import { fontSize, radius, spacing, TAB_ACTIVE_TINT } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
 /**
@@ -54,8 +54,10 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: t.textMuted,
         // 選中整格上淡底色。這是分辨選中與否最強的訊號，
         // 因為它不依賴顏色對比也不依賴字級——是一整塊面積。
-        tabBarActiveBackgroundColor: t.primarySoft,
-        tabBarInactiveBackgroundColor: t.card,
+        // 這兩個值都【不能】隨主題變——原因見 theme/colors.ts 的 TAB_ACTIVE_TINT 註解。
+        // 簡單說：它們套在會被記憶化的 tab item 上，用主題色會在切換深／淺色後殘留舊色。
+        tabBarActiveBackgroundColor: TAB_ACTIVE_TINT,
+        tabBarInactiveBackgroundColor: 'transparent',
         tabBarStyle: {
           backgroundColor: t.card,
           borderTopColor: t.cardBorder,
