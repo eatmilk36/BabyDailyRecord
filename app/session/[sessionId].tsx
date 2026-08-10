@@ -171,7 +171,13 @@ export default function SessionModal() {
             key={event.id}
             style={[
               styles.block,
-              { backgroundColor: tone?.soft ?? t.card, borderColor: t.cardBorder },
+              {
+                backgroundColor: tone?.soft ?? t.card,
+                borderColor: t.cardBorder,
+                // 這個彈窗兩寶上下並排，而「改上面下面會跟著變」的行為只有在你
+                // 分得出哪個是哪個時才安全。左側粗色條跟首頁用同一套語言。
+                borderLeftColor: tone?.base ?? t.primary,
+              },
             ]}
           >
             <View style={styles.header}>

@@ -7,15 +7,22 @@ import { useTheme } from '../theme/useTheme';
 
 type Props = {
   stats: TodayStats;
-  /** 前綴文字。首頁是「今天」，紀錄頁換成該日日期 */
+  /** 前綴文字。首頁是「今天」，紀錄頁換成寶寶的名字 */
   label?: string;
+  /**
+   * 前綴是【寶寶名字】時要設 true。
+   *
+   * 紀錄頁把名字當 label 傳進來，而預設樣式是全 APP 最小的 12px 淡灰字 ——
+   * 於是「這張卡是哪一寶」用了最不顯眼的排版，而那是雙胞胎最需要先知道的事。
+   */
+  prefixStrong?: boolean;
 };
 
 /**
  * 某寶某一天的摘要。
  * 雙胞胎一定要分開看——體重與攝入量的差異是回診重點。
  */
-export function TodaySummary({ stats, label = '今天' }: Props) {
+export function TodaySummary({ stats, label = '今天', prefixStrong }: Props) {
   const t = useTheme();
 
   const items: { value: string; label: string }[] = [
@@ -30,7 +37,14 @@ export function TodaySummary({ stats, label = '今天' }: Props) {
 
   return (
     <View style={styles.row}>
-      <Text style={[styles.prefix, { color: t.textMuted }]}>{label}</Text>
+      <Text
+        style={[
+          prefixStrong ? styles.prefixStrong : styles.prefix,
+          { color: prefixStrong ? t.text : t.textMuted },
+        ]}
+      >
+        {label}
+      </Text>
       {items.map((it, i) => (
         <View key={`${it.label}-${i}`} style={styles.item}>
           <Text style={[styles.value, { color: t.text }]}>{it.value}</Text>
@@ -44,6 +58,7 @@ export function TodaySummary({ stats, label = '今天' }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: spacing.sm },
   prefix: { fontSize: fontSize.xs, fontWeight: '600' },
+  prefixStrong: { fontSize: fontSize.md, fontWeight: '800' },
   item: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   value: { fontSize: fontSize.md, fontFamily: numFont.regular },
   label: { fontSize: fontSize.xs },

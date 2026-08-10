@@ -61,7 +61,8 @@ export default function EventModal() {
   }, [id]);
 
   const baby = babies.find((b) => b.id === event?.babyId);
-  const tint = baby ? t.baby[baby.colorKey].base : t.primary;
+  const tone = baby ? t.baby[baby.colorKey] : undefined;
+  const tint = tone?.base ?? t.primary;
 
   async function patch(p: EventPatch) {
     if (!event) return;
@@ -140,7 +141,16 @@ export default function EventModal() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.header}>
+      {/* 染色的標題帶：原本辨識「這是哪一寶」只有一個 12pt 圓點加名字，
+          而這個彈窗是你按下大按鈕後立刻浮出來的畫面 —— 如果按錯了寶寶，
+          這裡是唯一一次能發現的機會，不該用最小的視覺訊號。 */}
+      <View
+        style={[
+          styles.header,
+          styles.headerBand,
+          { backgroundColor: tone?.soft ?? t.card, borderLeftColor: tint },
+        ]}
+      >
         <View style={[styles.dot, { backgroundColor: tint }]} />
         <Text style={[styles.title, { color: t.text }]}>
           {/* 擠奶不屬於任何寶寶，所以找不到 baby 時不要硬寫「寶寶」 */}
@@ -177,6 +187,12 @@ const styles = StyleSheet.create({
   deletedButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   content: { padding: spacing.xl, gap: spacing.md, paddingBottom: spacing.xxl },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerBand: {
+    borderLeftWidth: 6,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
   dot: { width: 12, height: 12, borderRadius: 6 },
   title: { fontSize: fontSize.lg, fontWeight: '800' },
   hint: { fontSize: fontSize.xs, lineHeight: 18 },

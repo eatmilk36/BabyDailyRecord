@@ -99,12 +99,19 @@ export default function History() {
             key={b.id}
             style={[
               styles.summaryCard,
-              { backgroundColor: t.baby[b.colorKey].soft, borderColor: t.cardBorder },
+              {
+                backgroundColor: t.baby[b.colorKey].soft,
+                borderColor: t.cardBorder,
+                // 跟首頁與統計頁一致的左側粗色條
+                borderLeftColor: t.baby[b.colorKey].base,
+              },
             ]}
           >
             <View style={[styles.dot, { backgroundColor: t.baby[b.colorKey].base }]} />
             <View style={styles.summaryBody}>
-              <TodaySummary stats={statsOf(events, b.id)} label={b.name} />
+              {/* prefixStrong：名字要用正常字級的粗體，不是 12px 淡灰字。
+                  雙胞胎最需要先知道的就是「這張卡是哪一寶」。 */}
+              <TodaySummary stats={statsOf(events, b.id)} label={b.name} prefixStrong />
             </View>
           </View>
         ))}
@@ -211,6 +218,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderRadius: radius.md,
     borderWidth: 1,
+    borderLeftWidth: 5,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
