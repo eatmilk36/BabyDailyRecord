@@ -31,7 +31,14 @@ export function EventRow({ event, baby, onPress, onLongPress }: Props) {
       }}
       style={({ pressed }) => [
         styles.row,
-        { backgroundColor: pressed ? t.cardBorder : t.card, borderColor: t.cardBorder },
+        {
+          backgroundColor: pressed ? t.cardBorder : t.card,
+          borderColor: t.cardBorder,
+          // 左側粗色條：原本分辨「這是哪一寶」只靠一個 10×10 的圓點，
+          // 整列完全沒有顏色。跟首頁的寶寶卡用同一套視覺語言，
+          // 一整頁紀錄捲下來時可以靠顏色分組而不是逐列讀名字。
+          borderLeftColor: tone?.base ?? t.cardBorder,
+        },
       ]}
     >
       <Text style={[styles.time, { color: t.textMuted }]}>{formatClock(event.occurredAt)}</Text>
@@ -60,6 +67,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1,
+    borderLeftWidth: 5,
   },
   time: { fontSize: fontSize.sm, fontFamily: numFont.regular, width: 46 },
   dot: { width: 10, height: 10, borderRadius: 5 },
