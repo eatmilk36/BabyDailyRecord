@@ -12,6 +12,7 @@ import {
   SEX_LABEL,
   SIDE_LABEL,
   stoolCardLabel,
+  TYPE_LABEL,
 } from './labels';
 
 /**
@@ -66,12 +67,16 @@ export async function exportCsv(): Promise<void> {
     '餵法',
     '奶種',
     '奶量ml',
-    '親餵分鐘',
+    // durationMin 同時用在親餵與睡眠，欄名不能只寫「親餵分鐘」
+    '時長分鐘',
     '哪一邊',
     '尿布類型',
     '大便卡編號',
     '大便卡異常',
     '大便顏色(舊)',
+    '體重kg',
+    '身長cm',
+    '頭圍cm',
     '備註',
   ];
 
@@ -89,7 +94,9 @@ function toCsvRow(e: BabyEvent, babyById: Map<string, Baby>): string[] {
     baby?.sex ? SEX_LABEL[baby.sex] : '',
     format(d, 'yyyy-MM-dd'),
     format(d, 'HH:mm'),
-    e.type === 'feed' ? '喝奶' : '尿布',
+    // 走 TYPE_LABEL，不要自己寫三元。原本是 `e.type === 'feed' ? '喝奶' : '尿布'`，
+    // 於是睡眠／擠奶／生長三種全部被標成「尿布」——而這張表是要拿給醫生看的。
+    TYPE_LABEL[e.type],
     e.method ? METHOD_LABEL[e.method] : '',
     e.milk ? MILK_LABEL[e.milk] : '',
     e.amountMl != null ? String(e.amountMl) : '',
@@ -100,6 +107,11 @@ function toCsvRow(e: BabyEvent, babyById: Map<string, Baby>): string[] {
     // 獨立一欄標出異常，醫生掃 CSV 時不用自己記 1–6 的規則
     isStoolCardAbnormal(e.stoolCard) ? '異常' : '',
     e.diaperColor ? DIAPER_COLOR_LABEL[e.diaperColor] : '',
+    // 生長紀錄的三個量測。原本完全沒有欄位，等於「生長紀錄匯出後是空白列」。
+    // 用純數字不帶單位，欄名已經寫了 kg/cm，這樣 Excel 才能直接畫圖。
+    e.weightG != null ? (e.weightG / 1000).toFixed(2) : '',
+    e.heightMm != null ? (e.heightMm / 10).toFixed(1) : '',
+    e.headMm != null ? (e.headMm / 10).toFixed(1) : '',
     e.note ?? '',
   ];
 }

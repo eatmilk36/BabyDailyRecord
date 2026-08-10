@@ -34,7 +34,11 @@ const eventSchema = z.object({
   familyId: z.string().min(1),
   babyId: z.string().min(1),
   sessionId: z.string().nullable().default(null),
-  type: z.enum(['feed', 'diaper']),
+  // ⚠️ 這裡【必須】跟 db/schema.ts 的 type enum 完全一致。
+  // 少一個就等於「自己匯出的備份匯不回來」——因為 zod 會讓整份檔案驗證失敗，
+  // 使用者看到的是「這個檔案不是寶寶日誌的備份」，而備份是單機版唯一的保命通道。
+  // 曾經漏掉 sleep / pump / growth 三種，只要備份裡有任何一筆就整份被拒。
+  type: z.enum(['feed', 'diaper', 'sleep', 'pump', 'growth']),
   occurredAt: z.number().int(),
   endedAt: z.number().int().nullable().default(null),
   status: z.enum(['active', 'done']).default('done'),
@@ -47,6 +51,12 @@ const eventSchema = z.object({
   // 九色大便卡編號 1–9，0 = 說不準
   stoolCard: z.number().int().min(0).max(9).nullable().default(null),
   diaperColor: z.enum(['yellow', 'green', 'brown', 'black', 'white']).nullable().default(null),
+  // 生長紀錄的三個量測。zod 的 object 預設會【剝掉】沒宣告的欄位，
+  // 所以漏掉這三個不會報錯，只會讓匯入後的生長紀錄變成三個 null——
+  // 靜默掉資料比整份被拒還難發現。
+  weightG: z.number().int().nullable().default(null),
+  heightMm: z.number().int().nullable().default(null),
+  headMm: z.number().int().nullable().default(null),
   payload: z.record(z.string(), z.unknown()).nullable().default(null),
   note: z.string().nullable().default(null),
   createdBy: z.string().nullable().default(null),
@@ -90,7 +100,15 @@ export async function importJson(): Promise<ImportResult | null> {
 
   const parsed = backupSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new Error('這個檔案不是寶寶日誌的備份，或格式版本不相容');
+    // 一定要講【哪裡】不合。原本只說「這個檔案不是寶寶日誌的備份」，
+    // 結果真正的原因是 schema 漏了 sleep/pump/growth 三種 type，
+    // 而那句話讓人以為是選錯檔案，完全查不到真因。
+    const issues = parsed.error.issues.slice(0, 3).map((i) => {
+      const where = i.path.length > 0 ? i.path.join('.') : '(根層級)';
+      return `· ${where}：${i.message}`;
+    });
+    const more = parsed.error.issues.length > 3 ? `\n（另有 ${parsed.error.issues.length - 3} 個問題）` : '';
+    throw new Error(`這個檔案的格式不符：\n${issues.join('\n')}${more}`);
   }
   const backup = parsed.data;
 

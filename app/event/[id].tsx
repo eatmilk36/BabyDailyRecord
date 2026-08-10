@@ -13,6 +13,7 @@ import { EventFields } from '../../components/EventFields';
 import { SlimButton } from '../../components/SlimButton';
 import {
   getEvent,
+  restoreEvent,
   softDeleteEvent,
   updateEvent,
   useBabies,
@@ -40,6 +41,8 @@ export default function EventModal() {
   const { babies } = useBabies();
   const [event, setEvent] = useState<BabyEvent | null>(null);
   const [loading, setLoading] = useState(true);
+  // 刪除後停在這一頁顯示「復原」，而不是直接跳走
+  const [deleted, setDeleted] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -67,19 +70,35 @@ export default function EventModal() {
     await updateEvent(event.id, p);
   }
 
+  /**
+   * 刪除後【不跳走】，就地換成「已刪除 + 復原」。
+   *
+   * 原本寫的是 softDeleteEvent 之後 router.back()，而確認框跟你說
+   * 「刪除後可以在紀錄頁復原」——那是假的：紀錄頁的復原 bar 由它自己的
+   * local state 驅動，只有在紀錄頁長按刪除才會出現。從這裡刪掉的紀錄
+   * 沒有任何復原入口，而這是整個彈窗裡唯一不可逆的動作。
+   *
+   * 留在原地是最低風險也最誠實的解法：復原就在你按下刪除的地方。
+   */
   function handleDelete() {
     if (!event) return;
-    Alert.alert('刪除這筆紀錄？', '刪除後可以在紀錄頁復原。', [
+    Alert.alert('刪除這筆紀錄？', '刪除後這一頁會出現「復原」，離開這一頁就不能復原了。', [
       { text: '取消', style: 'cancel' },
       {
         text: '刪除',
         style: 'destructive',
         onPress: async () => {
           await softDeleteEvent(event.id);
-          router.back();
+          setDeleted(true);
         },
       },
     ]);
+  }
+
+  async function handleRestore() {
+    if (!event) return;
+    await restoreEvent(event.id);
+    setDeleted(false);
   }
 
   if (loading) {
@@ -94,6 +113,23 @@ export default function EventModal() {
     return (
       <View style={[styles.center, { backgroundColor: t.bg }]}>
         <Text style={{ color: t.textMuted }}>找不到這筆紀錄</Text>
+      </View>
+    );
+  }
+
+  if (deleted) {
+    return (
+      <View style={[styles.center, { backgroundColor: t.bg }]}>
+        <View style={styles.deletedBox}>
+          <Text style={[styles.deletedTitle, { color: t.text }]}>已刪除這筆紀錄</Text>
+          <Text style={[styles.hint, { color: t.textMuted }]}>
+            離開這一頁之後就沒有復原入口了。
+          </Text>
+          <View style={styles.deletedButtons}>
+            <SlimButton label="復原" tint={t.primary} filled onPress={handleRestore} />
+            <SlimButton label="關閉" tint={t.textMuted} onPress={() => router.back()} />
+          </View>
+        </View>
       </View>
     );
   }
@@ -136,6 +172,9 @@ export default function EventModal() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  deletedBox: { padding: spacing.xl, gap: spacing.md, alignItems: 'center' },
+  deletedTitle: { fontSize: fontSize.lg, fontWeight: '800' },
+  deletedButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   content: { padding: spacing.xl, gap: spacing.md, paddingBottom: spacing.xxl },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   dot: { width: 12, height: 12, borderRadius: 6 },

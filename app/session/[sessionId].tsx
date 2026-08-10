@@ -13,6 +13,7 @@ import { EventFields } from '../../components/EventFields';
 import { SlimButton } from '../../components/SlimButton';
 import {
   getSessionEvents,
+  restoreEvent,
   softDeleteEvent,
   updateEvent,
   useBabies,
@@ -42,6 +43,8 @@ export default function SessionModal() {
   const [items, setItems] = useState<BabyEvent[]>([]);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  // 刪除後停在這一頁顯示「復原」，而不是直接跳走
+  const [deleted, setDeleted] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -87,18 +90,29 @@ export default function SessionModal() {
     for (const u of updates) await updateEvent(u.id, u.patch);
   }
 
+  /**
+   * 跟單寶彈窗一樣：刪除後【留在這一頁】顯示「復原」。
+   * 原本承諾「可以在紀錄頁復原」是假的——紀錄頁的復原 bar 由它自己的
+   * local state 驅動，而且它一次只記得一筆，這裡刪的是兩筆，
+   * 就算跳過去也只救得回一筆。
+   */
   function handleDeleteAll() {
-    Alert.alert('刪除這兩筆紀錄？', '刪除後可以在紀錄頁復原。', [
+    Alert.alert('刪除這兩筆紀錄？', '刪除後這一頁會出現「復原」，離開這一頁就不能復原了。', [
       { text: '取消', style: 'cancel' },
       {
         text: '刪除',
         style: 'destructive',
         onPress: async () => {
           for (const e of items) await softDeleteEvent(e.id);
-          router.back();
+          setDeleted(true);
         },
       },
     ]);
+  }
+
+  async function handleRestoreAll() {
+    for (const e of items) await restoreEvent(e.id);
+    setDeleted(false);
   }
 
   if (loading) {
@@ -113,6 +127,23 @@ export default function SessionModal() {
     return (
       <View style={[styles.center, { backgroundColor: t.bg }]}>
         <Text style={{ color: t.textMuted }}>找不到這組紀錄</Text>
+      </View>
+    );
+  }
+
+  if (deleted) {
+    return (
+      <View style={[styles.center, { backgroundColor: t.bg }]}>
+        <View style={styles.deletedBox}>
+          <Text style={[styles.deletedTitle, { color: t.text }]}>已刪除這兩筆紀錄</Text>
+          <Text style={[styles.hint, { color: t.textMuted }]}>
+            離開這一頁之後就沒有復原入口了。
+          </Text>
+          <View style={styles.deletedButtons}>
+            <SlimButton label="復原" tint={t.primary} filled onPress={handleRestoreAll} />
+            <SlimButton label="關閉" tint={t.textMuted} onPress={() => router.back()} />
+          </View>
+        </View>
       </View>
     );
   }
@@ -185,6 +216,9 @@ function pickMirrorFields(p: EventPatch): EventPatch {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  deletedBox: { padding: spacing.xl, gap: spacing.md, alignItems: 'center' },
+  deletedTitle: { fontSize: fontSize.lg, fontWeight: '800' },
+  deletedButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   hint: { fontSize: fontSize.xs, lineHeight: 18 },
   block: { borderRadius: radius.lg, borderWidth: 1, padding: spacing.lg, gap: spacing.md },
