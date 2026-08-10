@@ -2,6 +2,7 @@ import { isValid, parseISO } from 'date-fns';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,6 +16,7 @@ import { Chip } from '../components/Chip';
 import { SlimButton } from '../components/SlimButton';
 import { createBabies } from '../db/queries';
 import type { Baby } from '../db/schema';
+import { importJson } from '../lib/import';
 import { SEX_LABEL } from '../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../lib/time';
 import { fontSize, radius, spacing } from '../theme/colors';
@@ -38,6 +40,7 @@ export default function Onboarding() {
   const [sexB, setSexB] = useState<Baby['sex']>(null);
   const [birth, setBirth] = useState('');
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const birthValid = /^\d{4}-\d{2}-\d{2}$/.test(birth) && isValid(parseISO(birth));
   const notFuture = birthValid && parseISO(birth).getTime() <= Date.now();
@@ -52,8 +55,50 @@ export default function Onboarding() {
         { name: nameB.trim(), birthDate: birth, sex: sexB },
       ]);
       router.replace('/');
+    } catch (e) {
+      // 沒有 catch 的話：按鈕從「建立中…」變回「開始使用」、不導航、不提示，
+      // 而 index.tsx 會因為 babies 仍為空一直把你踢回這一頁 —— 整個 APP 進不去。
+      Alert.alert('建立失敗', e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
+    }
+  }
+
+  /**
+   * 搬家／換手機的入口。
+   *
+   * 為什麼一定要放在這一頁：這個畫面是「babies 為空」時的唯一出口
+   * （index.tsx 會 Redirect 過來）。原本沒有匯入入口，所以帶著備份來的人
+   * 只能先手動建兩個寶寶，匯入之後就變成【4 個寶寶】—— 而且多出來的那兩個
+   * 沒有任何介面可以刪掉。
+   *
+   * Expo Go 的沙箱跟未來獨立 APK 不是同一個，所以這條路是一定會走到的。
+   */
+  async function handleImport() {
+    if (importing || saving) return;
+    setImporting(true);
+    try {
+      const result = await importJson();
+      if (!result) return; // 使用者取消選檔
+      if (result.babiesAdded === 0) {
+        Alert.alert(
+          '匯入完成，但沒有加入寶寶',
+          `這份備份裡的寶寶都已經存在（跳過 ${result.babiesSkipped} 筆）。\n` +
+            `紀錄新增 ${result.eventsAdded} 筆。\n\n` +
+            '如果這不是你預期的結果，請確認選到的是正確的備份檔。',
+        );
+        return;
+      }
+      Alert.alert(
+        '匯入完成',
+        `寶寶：新增 ${result.babiesAdded}、跳過 ${result.babiesSkipped}\n` +
+          `紀錄：新增 ${result.eventsAdded}、跳過 ${result.eventsSkipped}`,
+        [{ text: '好', onPress: () => router.replace('/') }],
+      );
+    } catch (e) {
+      Alert.alert('匯入失敗', e instanceof Error ? e.message : String(e));
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -114,6 +159,30 @@ export default function Onboarding() {
               disabled={!canSave || saving}
               filled
             />
+          </View>
+
+          {/* 停用時要說缺什麼。原本按鈕 disabled 卻不解釋，第一次用的人
+              只會反覆戳一顆沒反應的按鈕。 */}
+          {!canSave ? (
+            <Text style={[styles.hint, { color: t.textMuted }]}>
+              {nameA.trim().length === 0 || nameB.trim().length === 0
+                ? '兩個寶寶的名字都要填。'
+                : '出生日期還沒填好。'}
+            </Text>
+          ) : null}
+
+          <View style={styles.importBlock}>
+            <Text style={[styles.hint, { color: t.textMuted }]}>
+              換手機或從 Expo Go 搬到獨立 APP？先匯入備份，不要在這裡重新建立 ——
+              不然匯入之後會變成 4 個寶寶，而多出來的兩個沒辦法刪。
+            </Text>
+            <View style={styles.actions}>
+              <SlimButton
+                label={importing ? '匯入中…' : '我有備份要匯入'}
+                onPress={handleImport}
+                disabled={importing || saving}
+              />
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -196,4 +265,5 @@ const styles = StyleSheet.create({
   sexRow: { gap: spacing.sm, marginTop: -spacing.sm },
   sexChips: { flexDirection: 'row', gap: spacing.sm },
   actions: { marginTop: spacing.md, flexDirection: 'row' },
+  importBlock: { marginTop: spacing.xl, gap: spacing.xs },
 });
