@@ -50,7 +50,10 @@ export function EventRow({ event, baby, onPress, onLongPress }: Props) {
       </Text>
 
       <Text style={styles.emoji}>{TYPE_EMOJI[event.type]}</Text>
-      <Text style={[styles.summary, { color: t.text }]} numberOfLines={1}>
+      {/* 兩行而不是一行：生長紀錄是「3.10 kg · 50.2 cm · 頭圍 35.0 cm」，
+          一行一定裝不下，結果頭圍永遠看不到 —— 而那是回診會問的三個數字之一。
+          只有真的需要時才會佔到第二行，短的摘要不會多佔空間。 */}
+      <Text style={[styles.summary, { color: t.text }]} numberOfLines={2}>
         {summarizeEvent(event)}
         {event.status === 'active' ? ' · 進行中' : ''}
       </Text>
@@ -71,7 +74,12 @@ const styles = StyleSheet.create({
   },
   time: { fontSize: fontSize.sm, fontFamily: numFont.regular, width: 46 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  baby: { fontSize: fontSize.sm, fontWeight: '700', width: 56 },
+  /**
+   * 固定寬度是刻意的：一整頁紀錄捲下來時，欄位對齊比「名字完整」更有助於掃視。
+   * 56 → 76 是因為 56 連 3–4 個中文字都放不下（實測長一點的名字會截成「BearBe…」）。
+   * 真正辨識哪一寶靠的是左側色條，名字是輔助，所以超長名字截斷可以接受。
+   */
+  baby: { fontSize: fontSize.sm, fontWeight: '700', width: 76 },
   emoji: { fontSize: 16 },
   summary: { fontSize: fontSize.sm, flex: 1 },
 });

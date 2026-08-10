@@ -25,6 +25,7 @@ import {
   useMilkStashMl,
   useRecentEvents,
 } from '../../db/queries';
+import type { BabyEvent } from '../../db/schema';
 import { cancelTimerNotification, scheduleNursingOverdue } from '../../lib/notifications';
 import { formatBabyAge, greeting } from '../../lib/time';
 import { useActionLock } from '../../lib/useActionLock';
@@ -98,12 +99,27 @@ export default function Home() {
     });
   }
 
-  function handleStopNursing(eventId: string) {
+  function handleStopNursing(event: BabyEvent) {
     return lock(async () => {
-      await endNursing(eventId);
-      void cancelTimerNotification(eventId);
+      await endNursing(event.id);
+      /**
+       * ⚠️ 兩個 id 都要取消，缺一不可：
+       *   - 單獨開始的親餵：通知 id 是【事件 id】
+       *   - 同時親餵：只排一則通知，id 是【sessionId】，兩寶共用
+       *
+       * 原本只取消 event.id。於是同時親餵之後如果你用卡片上的
+       * 「結束親餵」把兩寶各自收工（而不是按「結束同時哺餵」），
+       * tandemSessionId 因為 active 少於兩筆而不再成立 ——
+       * 那則 sessionId 的通知就【沒有任何路徑會取消它】，
+       * 60 分鐘後照響，半夜吵醒兩個寶寶。
+       *
+       * 取消不存在的排程是 no-op（cancelTimerNotification 內部有 try/catch），
+       * 所以多取消一個 id 沒有代價。
+       */
+      void cancelTimerNotification(event.id);
+      if (event.sessionId) void cancelTimerNotification(event.sessionId);
       // 結束後開彈窗，讓你能立刻修正時長（忘記按結束的補救）
-      router.push(`/event/${eventId}`);
+      router.push(`/event/${event.id}`);
     });
   }
 
@@ -139,8 +155,11 @@ export default function Home() {
     return lock(async () => {
       if (tandemSessionId) {
         // 通知 id 用的是 sessionId，取消時必須用同一個值 ——
-        // 用別的（例如時間戳）就永遠對不上，通知照響
+        // 用別的（例如時間戳）就永遠對不上，通知照響。
+        // 順手也把兩筆事件各自的 id 取消掉：這場 session 可能是先個別開始、
+        // 後來才被判定成同時哺餵，那時每筆都有自己的通知。
         void cancelTimerNotification(tandemSessionId);
+        for (const e of actives) void cancelTimerNotification(e.id);
         await endNursingSession(tandemSessionId);
         router.push(`/session/${tandemSessionId}`);
         return;
@@ -193,7 +212,8 @@ export default function Home() {
             onStartNursing={() => handleStartNursing(baby.id)}
             onStopNursing={() => {
               const active = activeNursingOf(events, baby.id);
-              if (active) handleStopNursing(active.id);
+              // 傳整個事件而不是 id —— 取消通知時需要它的 sessionId
+              if (active) handleStopNursing(active);
             }}
             onStartSleep={() => handleStartSleep(baby.id)}
             onStopSleep={() => {
