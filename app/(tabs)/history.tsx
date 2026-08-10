@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventRow } from '../../components/EventRow';
+import { QueryError } from '../../components/QueryError';
 import { SlimButton } from '../../components/SlimButton';
 import { TodaySummary } from '../../components/TodaySummary';
 import {
@@ -12,7 +13,9 @@ import {
   useBabies,
   useEventsForDay,
 } from '../../db/queries';
-import { formatDayLabelMs, isSameDay, shiftDay, startOfToday } from '../../lib/time';
+import type { BabyEvent } from '../../db/schema';
+import { summarizeEvent } from '../../lib/labels';
+import { formatClock, formatDayLabelMs, isSameDay, shiftDay, startOfToday } from '../../lib/time';
 import { useNow } from '../../lib/useNow';
 import { fontSize, radius, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
@@ -32,12 +35,38 @@ export default function History() {
   const t = useTheme();
   const now = useNow(60_000);
   const insets = useSafeAreaInsets();
-  const { babies } = useBabies();
+  const { babies, error: babiesError } = useBabies();
 
-  const [dayStart, setDayStart] = useState(() => startOfToday());
-  const { events, loaded } = useEventsForDay(dayStart);
+  const todayStart = startOfToday(now);
+  const [dayStart, setDayStart] = useState(todayStart);
+  const { events, loaded, error: eventsError } = useEventsForDay(dayStart);
 
-  const [undoId, setUndoId] = useState<string | null>(null);
+  /**
+   * 過了午夜要自動跟著跳到新的今天。
+   *
+   * 原本 dayStart 只在 mount 時算一次，所以半夜停在紀錄頁不動，
+   * 午夜一過畫面就永遠卡在「昨天」——而你半夜新記的紀錄都算在新的一天，
+   * 完全不會出現在畫面上。這正好發生在這個 APP 使用最密集的時段。
+   *
+   * 只在「使用者本來就停在今天」時才跟著跳；如果他手動翻到別天，不要動他。
+   */
+  const prevToday = useRef(todayStart);
+  useEffect(() => {
+    if (todayStart !== prevToday.current) {
+      const wasOnToday = prevToday.current;
+      setDayStart((d) => (d === wasOnToday ? todayStart : d));
+      prevToday.current = todayStart;
+    }
+  }, [todayStart]);
+
+  /**
+   * 復原是一個【佇列】，不是單一個 id。
+   *
+   * 原本只記一筆：連續刪兩筆時第二筆會覆蓋第一筆的 undoId，
+   * 而且 timer 也被重設，所以第一筆永遠救不回來，畫面上還說「已刪除一筆紀錄」。
+   * 半夜捲動清單誤觸長按會連續刪，這不是罕見情境。
+   */
+  const [undo, setUndo] = useState<{ id: string; label: string }[]>([]);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
@@ -49,17 +78,46 @@ export default function History() {
 
   const atToday = isSameDay(dayStart, now);
 
-  async function handleDelete(id: string) {
-    await softDeleteEvent(id);
-    setUndoId(id);
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    undoTimer.current = setTimeout(() => setUndoId(null), UNDO_WINDOW_MS);
+  /**
+   * 長按刪除加確認框。
+   *
+   * ⚠️ 原本長按【直接刪】，沒有任何提示。而這是一個要捲動的清單，
+   * 手指停在某一列上稍久一點就會觸發 —— 半夜單手捲動時尤其容易。
+   *
+   * 確認框上寫出【刪的是哪一筆】，因為一列的內容是「06:16 · 親餵 母奶 18 分」，
+   * 光說「刪除這筆紀錄？」你不知道自己按到的是哪一列。
+   */
+  function handleDelete(e: BabyEvent, babyName?: string) {
+    const label = `${formatClock(e.occurredAt)} · ${babyName ? `${babyName} · ` : ''}${summarizeEvent(e)}`;
+    Alert.alert('刪除這筆紀錄？', label, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '刪除',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await softDeleteEvent(e.id);
+          } catch (err) {
+            Alert.alert('刪不掉', err instanceof Error ? err.message : String(err));
+            return;
+          }
+          setUndo((prev) => [...prev, { id: e.id, label }]);
+          if (undoTimer.current) clearTimeout(undoTimer.current);
+          undoTimer.current = setTimeout(() => setUndo([]), UNDO_WINDOW_MS);
+        },
+      },
+    ]);
   }
 
   async function handleUndo() {
-    if (!undoId) return;
-    await restoreEvent(undoId);
-    setUndoId(null);
+    if (undo.length === 0) return;
+    try {
+      for (const u of undo) await restoreEvent(u.id);
+    } catch (err) {
+      Alert.alert('復原失敗', err instanceof Error ? err.message : String(err));
+      return;
+    }
+    setUndo([]);
     if (undoTimer.current) clearTimeout(undoTimer.current);
   }
 
@@ -70,20 +128,27 @@ export default function History() {
 
         <View style={styles.dateNav}>
           <Arrow label="‹" onPress={() => setDayStart(shiftDay(dayStart, -1))} />
-          <Text style={[styles.dateLabel, { color: t.text }]}>
-            {formatDayLabelMs(dayStart, now)}
-          </Text>
+          {/* 日期文字本身可以點 → 回到今天。原本只有右邊那個小「今天」連結
+              可以按，而換日一次只能一天，回到今天要按很多次箭頭。 */}
+          <Pressable
+            onPress={() => setDayStart(todayStart)}
+            disabled={atToday}
+            hitSlop={12}
+            style={styles.dateLabelPress}
+          >
+            <Text style={[styles.dateLabel, { color: t.text }]}>
+              {formatDayLabelMs(dayStart, now)}
+            </Text>
+            {!atToday ? (
+              <Text style={[styles.todayLink, { color: t.primary }]}>點一下回到今天</Text>
+            ) : null}
+          </Pressable>
           {/* 不能往未來翻 */}
           <Arrow
             label="›"
             disabled={atToday}
             onPress={() => setDayStart(shiftDay(dayStart, 1))}
           />
-          {!atToday ? (
-            <Pressable onPress={() => setDayStart(startOfToday())} hitSlop={8}>
-              <Text style={[styles.todayLink, { color: t.primary }]}>今天</Text>
-            </Pressable>
-          ) : null}
         </View>
       </View>
 
@@ -93,6 +158,12 @@ export default function History() {
           { paddingBottom: TAB_BAR_HEIGHT + insets.bottom + spacing.xxl },
         ]}
       >
+        {/* 查詢失敗時 loaded 永遠是 false，所以下面那個「今天還沒有紀錄」
+            的空狀態被 `loaded &&` 擋住，events.map 也印不出東西 ——
+            結果是標題底下一片【全白】，比顯示錯誤更難診斷。 */}
+        <QueryError error={babiesError} what="寶寶資料" />
+        <QueryError error={eventsError} what="這一天的紀錄" />
+
         {/* 分寶單日總結——回診時醫生問的就是這幾個數字 */}
         {babies.map((b) => (
           <View
@@ -130,19 +201,22 @@ export default function History() {
         ) : null}
 
         <View style={styles.rows}>
-          {events.map((e) => (
-            <EventRow
-              key={e.id}
-              event={e}
-              baby={babies.find((b) => b.id === e.babyId)}
-              onPress={() => router.push(`/event/${e.id}`)}
-              onLongPress={() => handleDelete(e.id)}
-            />
-          ))}
+          {events.map((e) => {
+            const baby = babies.find((b) => b.id === e.babyId);
+            return (
+              <EventRow
+                key={e.id}
+                event={e}
+                baby={baby}
+                onPress={() => router.push(`/event/${e.id}`)}
+                onLongPress={() => handleDelete(e, baby?.name)}
+              />
+            );
+          })}
         </View>
       </ScrollView>
 
-      {undoId ? (
+      {undo.length > 0 ? (
         <View
           style={[
             styles.undoBar,
@@ -153,9 +227,23 @@ export default function History() {
             },
           ]}
         >
-          <Text style={[styles.undoText, { color: t.text }]}>已刪除一筆紀錄</Text>
+          {/* 說出刪掉的是哪一筆。原本只寫「已刪除一筆紀錄」，
+              而且連續刪兩筆時第一筆會被靜默覆蓋。 */}
+          <View style={styles.undoBody}>
+            <Text style={[styles.undoText, { color: t.text }]}>
+              {undo.length === 1 ? '已刪除' : `已刪除 ${undo.length} 筆`}
+            </Text>
+            <Text style={[styles.undoDetail, { color: t.textMuted }]} numberOfLines={1}>
+              {undo[undo.length - 1].label}
+            </Text>
+          </View>
           <View style={styles.undoButton}>
-            <SlimButton label="復原" tint={t.primary} filled onPress={handleUndo} />
+            <SlimButton
+              label={undo.length === 1 ? '復原' : '全部復原'}
+              tint={t.primary}
+              filled
+              onPress={handleUndo}
+            />
           </View>
         </View>
       ) : null}
@@ -200,16 +288,19 @@ const styles = StyleSheet.create({
 
   dateNav: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   arrow: {
-    width: 40,
-    height: 40,
+    // 40 → 44（可觸及性底線）。半夜單手翻日期點不準很煩
+    width: 44,
+    height: 44,
     borderRadius: radius.pill,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   arrowText: { fontSize: fontSize.lg, fontWeight: '800', lineHeight: 24 },
-  dateLabel: { fontSize: fontSize.md, fontWeight: '800', minWidth: 120, textAlign: 'center' },
-  todayLink: { fontSize: fontSize.sm, fontWeight: '700' },
+  // 44 是可觸及性底線。整個日期區塊都可點，不只右邊那個小連結。
+  dateLabelPress: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  dateLabel: { fontSize: fontSize.md, fontWeight: '800', textAlign: 'center' },
+  todayLink: { fontSize: fontSize.xs, fontWeight: '700', marginTop: 1 },
 
   content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
   summaryCard: {
@@ -242,6 +333,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
   },
-  undoText: { flex: 1, fontSize: fontSize.sm, fontWeight: '600' },
-  undoButton: { width: 96 },
+  undoBody: { flex: 1 },
+  undoText: { fontSize: fontSize.sm, fontWeight: '800' },
+  undoDetail: { fontSize: fontSize.xs, marginTop: 1 },
+  undoButton: { width: 108 },
 });

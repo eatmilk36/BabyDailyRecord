@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 
 /** 解鎖前的冷卻時間。要蓋過 modal 推入的轉場動畫，否則動畫期間還能再按到底層按鈕。 */
 const COOLDOWN_MS = 700;
@@ -34,6 +35,26 @@ export function useActionLock() {
     busy.current = true;
     try {
       await fn();
+    } catch (e) {
+      /**
+       * ⚠️ 這個 catch 是必要的，而且放在這裡是刻意的。
+       *
+       * 原本只有 try/finally。而 SlimButton 與 BigActionButton 都是直接
+       * 呼叫 onPress() 並【丟棄回傳的 Promise】（onPress 的型別是
+       * `() => void`，所以 TypeScript 也不會抗議）。兩件事加起來：
+       * 任何寫入失敗都變成 RN 的 unhandled rejection ——
+       * 沒有 Alert、沒有紅畫面、沒有導航到彈窗，按下去就是
+       * 【只有震動，什麼都沒發生】，而且 700ms 冷卻後可以無限重按依然沒反應。
+       *
+       * 放在鎖裡而不是每個 handler 裡：所有記錄按鈕都經過這裡，
+       * 一處補上就全部覆蓋，而且不可能有人漏寫。
+       */
+      Alert.alert(
+        '沒有存進去',
+        `${e instanceof Error ? e.message : String(e)}\n\n` +
+          '這一筆沒有寫入資料庫。如果一直出現，請到「設定 → 匯出 JSON 備份」' +
+          '先把現有資料存出來。',
+      );
     } finally {
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => {

@@ -2,6 +2,7 @@ import { Redirect, router } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BabyCard } from '../../components/BabyCard';
+import { QueryError } from '../../components/QueryError';
 import { SlimButton } from '../../components/SlimButton';
 import {
   activeNursingOf,
@@ -48,12 +49,34 @@ import { useTheme } from '../../theme/useTheme';
 export default function Home() {
   const t = useTheme();
   const now = useNow(30_000);
-  const { babies, loaded: babiesLoaded } = useBabies();
-  const { events } = useRecentEvents();
-  const { stash } = useMilkStashMl();
+  const { babies, loaded: babiesLoaded, error: babiesError } = useBabies();
+  const { events, error: eventsError } = useRecentEvents();
+  const { stash, error: stashError } = useMilkStashMl();
   const insets = useSafeAreaInsets();
   // 所有寫入動作共用一把鎖，防止「覺得沒反應所以再按一次」產生重複紀錄
   const lock = useActionLock();
+
+  /**
+   * ⚠️ 錯誤要【在 loaded 判斷之前】處理。
+   *
+   * useLiveQuery 查詢失敗時只 setError，不 throw：data 停在 []、
+   * updatedAt 永遠 undefined，所以我們的 loaded 永遠是 false。
+   * 原本這裡的順序讓失敗變成下面那個 ActivityIndicator ——
+   * 一顆【永遠轉不停的圈】，沒有錯誤文字、沒有超時、沒有重試，
+   * 而 tab bar 還能點，看起來像網路卡住而不是資料庫壞掉。
+   *
+   * 而且 babies 讀不到就無法判斷該不該跳 onboarding：如果放行到下面那行，
+   * babies.length === 0 會把使用者送去建立寶寶，然後他就建出重複的兩隻。
+   */
+  if (babiesError) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]}>
+        <View style={styles.errorWrap}>
+          <QueryError error={babiesError} what="寶寶資料" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // 還沒建立寶寶 → 去 onboarding
   if (babiesLoaded && babies.length === 0) return <Redirect href="/onboarding" />;
@@ -62,6 +85,7 @@ export default function Home() {
     return (
       <SafeAreaView style={[styles.safe, styles.center, { backgroundColor: t.bg }]}>
         <ActivityIndicator color={t.primary} />
+        <Text style={[styles.loadingText, { color: t.textMuted }]}>讀取寶寶資料…</Text>
       </SafeAreaView>
     );
   }
@@ -187,6 +211,11 @@ export default function Home() {
           { paddingBottom: TAB_BAR_HEIGHT + insets.bottom + spacing.lg },
         ]}
       >
+        {/* 紀錄讀不到時，卡片上的「還沒有喝奶紀錄」「今天 0 次奶」全都是假的 ——
+            那個畫面跟「今天真的還沒餵」長得一模一樣。必須說出來。 */}
+        <QueryError error={eventsError} what="最近的紀錄" />
+        <QueryError error={stashError} what="母乳庫存" />
+
         <View style={styles.header}>
           <Text style={[styles.greeting, { color: t.text }]}>{greeting(now)}</Text>
           {babies[0] ? (
@@ -256,7 +285,9 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  center: { alignItems: 'center', justifyContent: 'center' },
+  center: { alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  loadingText: { fontSize: fontSize.sm },
+  errorWrap: { padding: spacing.lg },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   greeting: { fontSize: fontSize.xl, fontWeight: '800' },
