@@ -106,6 +106,42 @@ export async function scheduleNursingOverdue(
   return true;
 }
 
+/** 測試通知的固定 id。重複測試會覆蓋前一則，不會累積。 */
+const TEST_ID = 'test-notification';
+
+/** 測試通知延遲幾秒。要夠久讓你來得及鎖屏，又不要久到你以為壞了。 */
+export const TEST_NOTIFICATION_DELAY_SEC = 8;
+
+/**
+ * 發一則真正的測試通知。
+ *
+ * ⚠️ 為什麼不能只檢查權限旗標：權限只決定「允不允許」，不決定「送不送到」。
+ * 小米／華為／OPPO 的省電機制會延遲甚至直接吃掉排程通知，而那正是這個
+ * 功能最可能失效的原因。只讀權限旗標然後回答「超時提醒會正常運作」
+ * 是給了假的安心感 —— 使用者真正需要知道的是「它會不會出現在我的鎖屏上」，
+ * 而那件事只能靠實際送一則來回答。
+ *
+ * 回傳 false = 連權限都沒有（那就不必談送達了）。
+ */
+export async function sendTestNotification(): Promise<boolean> {
+  const ok = await ensureNotificationPermission();
+  if (!ok) return false;
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: TEST_ID,
+    content: {
+      title: '測試通知',
+      body: '你看到這則就表示鎖屏提醒會正常送到。親餵超時的提醒長得跟這個一樣。',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: TEST_NOTIFICATION_DELAY_SEC,
+      channelId: CHANNEL_ID,
+    },
+  });
+  return true;
+}
+
 /** 結束計時時取消提醒。沒排過或已經觸發過都會丟例外，那不是錯誤。 */
 export async function cancelTimerNotification(eventId: string): Promise<void> {
   try {

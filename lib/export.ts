@@ -30,8 +30,21 @@ import {
 export const EXPORT_FORMAT = 'BabyDailyRecord';
 export const EXPORT_VERSION = 1;
 
+/**
+ * 匯出的結果。回傳給呼叫端做【成功回饋】用。
+ *
+ * ⚠️ shareAsync 沒辦法告訴我們使用者最後有沒有真的存檔（Android 的分享選單
+ * 不回報結果）。所以「成功」的定義只到「檔案產生了、分享選單開過了」——
+ * 回饋文案必須誠實到這個程度，不能宣稱備份已經完成。
+ */
+export type ExportResult = {
+  filename: string;
+  babies: number;
+  events: number;
+};
+
 /** 完整備份（JSON）。含已軟刪除的資料，這樣還原後刪除狀態也一致。 */
-export async function exportJson(): Promise<void> {
+export async function exportJson(): Promise<ExportResult> {
   const data = await dumpAll();
   const payload = {
     format: EXPORT_FORMAT,
@@ -41,15 +54,13 @@ export async function exportJson(): Promise<void> {
     events: data.events,
   };
 
-  await shareText(
-    `baby-log-backup-${stamp()}.json`,
-    JSON.stringify(payload, null, 2),
-    'application/json',
-  );
+  const filename = `baby-log-backup-${stamp()}.json`;
+  await shareText(filename, JSON.stringify(payload, null, 2), 'application/json');
+  return { filename, babies: data.babies.length, events: data.events.length };
 }
 
 /** 給醫生看的表（CSV）。只含未刪除的紀錄，欄位是中文表頭。 */
-export async function exportCsv(): Promise<void> {
+export async function exportCsv(): Promise<ExportResult> {
   const { babies, events } = await dumpAll();
   const babyById = new Map(babies.map((b) => [b.id, b]));
 
@@ -83,7 +94,9 @@ export async function exportCsv(): Promise<void> {
   // ⚠️ '﻿' 是 UTF-8 BOM。少了它，Windows 的 Excel 開啟中文 CSV 會變亂碼。
   const csv = '﻿' + [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
 
-  await shareText(`baby-log-${stamp()}.csv`, csv, 'text/csv');
+  const filename = `baby-log-${stamp()}.csv`;
+  await shareText(filename, csv, 'text/csv');
+  return { filename, babies: babies.length, events: rows.length };
 }
 
 function toCsvRow(e: BabyEvent, babyById: Map<string, Baby>): string[] {
