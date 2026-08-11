@@ -1,5 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+/** 連動提示顯示多久 */
+const MIRROR_NOTE_MS = 2500;
 import {
   ActivityIndicator,
   Alert,
@@ -55,6 +58,16 @@ export default function SessionModal() {
   const [loading, setLoading] = useState(true);
   // 刪除後停在這一頁顯示「復原」，而不是直接跳走
   const [deleted, setDeleted] = useState(false);
+  // 連動發生時的短暫提示（連動可能發生在捲出畫面的那張卡上）
+  const [mirrorNote, setMirrorNote] = useState<string | null>(null);
+  const mirrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (mirrorTimer.current) clearTimeout(mirrorTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -82,12 +95,30 @@ export default function SessionModal() {
     const mirror = pickMirrorFields(p);
     const timeSync: EventPatch = p.occurredAt !== undefined ? { occurredAt: p.occurredAt } : {};
 
+    // 記下實際被連動到的是誰，等一下要告訴使用者
+    const mirroredTo: string[] = [];
+
     items.forEach((e, i) => {
       if (i === index) return;
       const other: EventPatch = { ...timeSync };
-      if (!nextTouched[e.id]) Object.assign(other, mirror);
+      if (!nextTouched[e.id] && Object.keys(mirror).length > 0) {
+        Object.assign(other, mirror);
+        mirroredTo.push(babies.find((b) => b.id === e.babyId)?.name ?? '另一位');
+      }
       if (Object.keys(other).length > 0) updates.push({ id: e.id, patch: other });
     });
+
+    /**
+     * ⚠️ 連動【發生在畫面外】。兩張卡上下排列，你在下面那張點選項時，
+     * 上面那張已經捲出畫面 —— 值被改掉了但你完全看不到，所以永遠學不會
+     * 這個行為存在，也不會發現它蓋掉了你先前填的東西。
+     * 給一個會自己消失的提示，講清楚剛剛同步到誰。
+     */
+    if (mirroredTo.length > 0) {
+      setMirrorNote(`已同步到 ${mirroredTo.join('、')}`);
+      if (mirrorTimer.current) clearTimeout(mirrorTimer.current);
+      mirrorTimer.current = setTimeout(() => setMirrorNote(null), MIRROR_NOTE_MS);
+    }
 
     setTouched(nextTouched);
     setItems((prev) =>
@@ -178,8 +209,15 @@ export default function SessionModal() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={[styles.savedBadge, { backgroundColor: `${t.diaper}26` }]}>
-        <Text style={[styles.savedText, { color: t.text }]}>✓ 兩筆都已儲存</Text>
+      <View style={styles.badgeRow}>
+        <View style={[styles.savedBadge, { backgroundColor: `${t.diaper}26` }]}>
+          <Text style={[styles.savedText, { color: t.text }]}>✓ 兩筆都已儲存</Text>
+        </View>
+        {mirrorNote ? (
+          <View style={[styles.savedBadge, { backgroundColor: `${t.primary}26` }]}>
+            <Text style={[styles.savedText, { color: t.primary }]}>↕ {mirrorNote}</Text>
+          </View>
+        ) : null}
       </View>
       <Text style={[styles.hint, { color: t.textMuted }]}>
         改其中一位，另一位會自動跟著變（不分上下，兩邊都會）。
@@ -271,6 +309,7 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6 },
   title: { fontSize: fontSize.lg, fontWeight: '800', flex: 1 },
   badge: { fontSize: fontSize.xs, fontWeight: '700' },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center' },
   savedBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.md,

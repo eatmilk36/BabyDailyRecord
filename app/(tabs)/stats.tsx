@@ -283,8 +283,13 @@ function DayBars({
     <View style={styles.barsWrap}>
       <View style={styles.barsHead}>
         <Text style={[styles.barsLabel, { color: t.textMuted }]}>{label}</Text>
+        {/* 分母寫出來，並補上「有記錄幾天」——這樣兩種算法的答案你都推得出來：
+            除以 14 天（這裡顯示的，誠實但會被沒記錄的日子拉低）
+            除以有記錄的天數（自己心算：平均 × 14 ÷ 有記錄天數）
+            不挑邊站，因為哪個才對取決於你那 14 天是不是真的每天都在記。 */}
         <Text style={[styles.barsAvg, { color: t.text }]}>
           {DAYS} 天平均 {formatValue ? formatValue(avg) : avg}
+          <Text style={{ color: t.textMuted }}>　有記錄 {values.filter((v) => v > 0).length} 天</Text>
         </Text>
       </View>
 

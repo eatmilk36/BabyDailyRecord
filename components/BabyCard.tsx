@@ -146,8 +146,22 @@ export function BabyCard({
       ) : null}
 
       <View style={styles.buttonRow}>
-        <BigActionButton emoji="🍼" label="喝奶" color={t.feed} onPress={onFeed} />
-        <BigActionButton emoji="💧" label="尿布" color={t.diaper} onPress={onDiaper} />
+        {/* 填色 = 動作（兩張卡上的「喝奶」同色，動作編碼完整保留）
+            外框 = 是誰。半夜看的是最大的元素，而它原本完全沒有寶寶資訊。 */}
+        <BigActionButton
+          emoji="🍼"
+          label="喝奶"
+          color={t.feed}
+          borderColor={tone.base}
+          onPress={onFeed}
+        />
+        <BigActionButton
+          emoji="💧"
+          label="尿布"
+          color={t.diaper}
+          borderColor={tone.base}
+          onPress={onDiaper}
+        />
       </View>
 
       <TodaySummary stats={stats} />
