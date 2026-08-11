@@ -9,13 +9,16 @@ type Props = {
   /** 動作色（喝奶 = 奶油琥珀 / 尿布 = 水藍） */
   color: string;
   /**
-   * 外框色 = 這顆按鈕屬於哪一個寶寶。
+   * 左側粗色條 = 這顆按鈕屬於哪一個寶寶。
    *
    * 這是「大按鈕要不要各自染色」那個取捨的解法：不用二選一。
-   * 填色仍然代表【動作】（兩張卡上的「喝奶」同色，所以動作編碼完整保留），
-   * 外框代表【是誰】—— 兩個訊號疊在同一顆按鈕上，互不衝突。
+   * 填色仍然代表【動作】（兩張卡上的「喝奶」同色，動作編碼完整保留），
+   * 左側色條代表【是誰】—— 兩個訊號疊在同一顆按鈕上，互不衝突。
    *
-   * 起因：半夜看的是最大的元素（大按鈕），而它原本完全沒有寶寶資訊。
+   * ⚠️ 第一版用 3px 的【整圈外框】，實機驗證發現看不出來：
+   * 蜜桃色 #E8A87C 跟喝奶填色 #E9C07A 太接近，薄荷色在奶油底上也讀不出來。
+   * 改成左側 8px 的實色條 —— 跟卡片、紀錄列、摘要卡、彈窗用同一套語言，
+   * 而且色條夠寬、邊界夠硬，不依賴前後景的色相差。
    */
   borderColor?: string;
   onPress: () => void;
@@ -51,7 +54,8 @@ export function BigActionButton({
         styles.base,
         {
           backgroundColor: color,
-          borderColor: borderColor ?? color,
+          borderLeftColor: borderColor ?? color,
+          borderLeftWidth: borderColor ? 8 : 0,
           opacity: disabled ? 0.4 : pressed ? 0.75 : 1,
         },
       ]}
@@ -69,7 +73,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 76,
     borderRadius: radius.lg,
-    borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
