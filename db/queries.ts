@@ -4,11 +4,13 @@ import { db } from './client';
 import {
   babies,
   events,
+  settings,
   type Baby,
   type BabyEvent,
   type DiaperKind,
   type MilkKind,
   type NursingSide,
+  type Setting,
 } from './schema';
 import { newId } from '../lib/uuid';
 import { dayKey, startOfToday } from '../lib/time';
@@ -620,4 +622,22 @@ export async function dumpAll(): Promise<{ babies: Baby[]; events: BabyEvent[] }
     babies: await db.select().from(babies),
     events: await db.select().from(events),
   };
+}
+
+// ---------------------------------------------------------------------------
+// 偏好設定（key-value）
+// ---------------------------------------------------------------------------
+
+/** 讀全部偏好。只有 App 啟動時讀一次，放進 SettingsProvider 的 context。 */
+export async function getAllSettings(): Promise<Setting[]> {
+  return db.select().from(settings);
+}
+
+/** 寫一筆偏好。key 是 primary key，所以用 upsert。 */
+export async function setSetting(key: string, value: string): Promise<void> {
+  const now = Date.now();
+  await db
+    .insert(settings)
+    .values({ key, value, updatedAt: now })
+    .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: now } });
 }

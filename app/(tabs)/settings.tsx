@@ -12,7 +12,14 @@ import { exportCsv, exportJson } from '../../lib/export';
 import { importJson } from '../../lib/import';
 import { SEX_LABEL } from '../../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../../lib/time';
-import { fontSize, radius, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
+import { useSettings, type ThemeMode } from '../../lib/settings';
+import { fontSize, radius, SKINS, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
+
+const THEME_MODES: { key: ThemeMode; label: string }[] = [
+  { key: 'auto', label: '跟隨系統' },
+  { key: 'light', label: '淺色' },
+  { key: 'dark', label: '深色' },
+];
 import { useTheme } from '../../theme/useTheme';
 
 /**
@@ -25,6 +32,7 @@ export default function Settings() {
   const t = useTheme();
   const { babies } = useBabies();
   const insets = useSafeAreaInsets();
+  const { settings, set } = useSettings();
   const [busy, setBusy] = useState<string | null>(null);
 
   async function run(label: string, fn: () => Promise<void>) {
@@ -100,6 +108,47 @@ export default function Settings() {
           {babies.map((baby) => (
             <BabyEditor key={baby.id} baby={baby} />
           ))}
+        </Section>
+
+        <Section title="外觀">
+          <Text style={[styles.note, { color: t.textMuted }]}>
+            皮膚與深淺模式會跟著「匯出 JSON 備份」一起帶走，換手機不用重設。
+          </Text>
+
+          <Text style={[styles.subLabel, { color: t.textMuted }]}>皮膚</Text>
+          <View style={styles.chipRow}>
+            {SKINS.map((s) => (
+              <Chip
+                key={s.key}
+                label={s.label}
+                tint={t.primary}
+                selected={settings.skin === s.key}
+                onPress={() => set('skin', s.key)}
+              />
+            ))}
+          </View>
+          <Text style={[styles.note, { color: t.textMuted }]}>
+            {SKINS.find((s) => s.key === settings.skin)?.blurb}
+          </Text>
+
+          <Text style={[styles.subLabel, { color: t.textMuted }]}>深淺模式</Text>
+          <View style={styles.chipRow}>
+            {THEME_MODES.map((m) => (
+              <Chip
+                key={m.key}
+                label={m.label}
+                tint={t.primary}
+                selected={settings.themeMode === m.key}
+                onPress={() => set('themeMode', m.key)}
+              />
+            ))}
+          </View>
+          <Text style={[styles.note, { color: t.textMuted }]}>
+            深色模式在這個 APP 不只是偏好 —— 半夜開燈會吵醒兩個寶寶，
+            所以深色版是低亮度的「夜燈」，不是把淺色反過來。
+            {'\n'}
+            「跟隨系統」會照你手機的自動深色排程走。
+          </Text>
         </Section>
 
         <Section title="備份">
@@ -369,6 +418,8 @@ const styles = StyleSheet.create({
   section: { gap: spacing.md },
   sectionTitle: { fontSize: fontSize.md, fontWeight: '800' },
   note: { fontSize: fontSize.xs, lineHeight: 19 },
+  subLabel: { fontSize: fontSize.xs, fontWeight: '800', marginTop: spacing.xs },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   buttonRow: { flexDirection: 'row' },
   buildBox: {
     borderRadius: radius.md,

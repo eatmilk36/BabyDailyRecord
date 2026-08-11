@@ -1,11 +1,19 @@
 /**
- * 奶油暖木色票。
- *
- * 設計立場：關鍵字是「家」不是「寶寶」——木頭色 + 奶油白是家的視覺語言
- * （木地板、藤編、暖色燈泡）。粉藍是嬰兒房的語言，抹茶米白是咖啡廳的語言。
+ * 三組皮膚 × 深淺兩版。
  *
  * 深色模式在這個 APP 是【功能需求不是偏好】：半夜開燈會叫醒寶寶（而且會叫醒兩個）。
- * 所以深色版不是把淺色反轉，而是暖色低亮度的「夜燈」，幾乎不含藍光。
+ * 所以每組的深色版都不是把淺色反轉，而是低亮度的「夜燈」。
+ *
+ * ── 每一組色票都必須滿足的四個硬條件 ──
+ *
+ * 1. baby.peach.soft 與 baby.mint.soft 要有【亮度】差，不能只有色相差。
+ *    深色版尤其重要——原本兩者亮度比是 1.00:1，等於半夜兩張卡長一樣。
+ *    每組深色版都拉到 1.35 以上（一個調亮、一個調暗）。
+ * 2. feed / diaper 這兩個動作色【不可以】等於任何一個 baby.base。
+ *    否則會出現「在 B 寶的卡片上，喝奶按鈕就是 A 寶的識別色」。
+ * 3. warn 疊在 warnSoft 上要 ≥ 4.5:1（那是膽道閉鎖的就醫警示），
+ *    onWarn 疊在 warn 上也要讀得清楚。
+ * 4. text 疊在 card 與兩個 baby.soft 上都要 ≥ 7:1。
  */
 
 /** 每個寶寶的固定代表色。雙胞胎半夜辨識靠顏色與位置，不是讀名字。 */
@@ -51,7 +59,16 @@ type Palette = {
   baby: Record<BabyColorKey, BabyTone>;
 };
 
-export const palette: { light: Palette; dark: Palette } = {
+export type SkinKey = 'warmwood' | 'sakura' | 'seasalt';
+
+export const SKINS: { key: SkinKey; label: string; blurb: string }[] = [
+  { key: 'warmwood', label: '奶油暖木', blurb: '木地板、藤編、暖色燈泡——「家」的語言' },
+  { key: 'sakura', label: '粉櫻', blurb: '玫瑰粉 + 薰衣草紫，柔和不刺眼' },
+  { key: 'seasalt', label: '海鹽藍', blurb: '冷色低刺激，白天看最清爽' },
+];
+
+/** 奶油暖木（預設）。木頭色 + 奶油白是家的視覺語言，不是嬰兒房的粉藍。 */
+const warmwood: { light: Palette; dark: Palette } = {
   light: {
     bg: '#FDF8F3',
     card: '#FFFFFF',
@@ -104,6 +121,116 @@ export const palette: { light: Palette; dark: Palette } = {
   },
 };
 
+/**
+ * 粉櫻。玫瑰粉 + 薰衣草紫。
+ * 兩寶的識別色改成【粉 vs 紫】——色相差夠大，而深色版靠亮度再分一次。
+ */
+const sakura: { light: Palette; dark: Palette } = {
+  light: {
+    bg: '#FFF7F8',
+    card: '#FFFFFF',
+    cardBorder: '#F1DFE4',
+    primary: '#B05A76',
+    primarySoft: '#F8E3EA',
+    text: '#463138',
+    textMuted: '#87707A',
+    // 動作色刻意留在暖黃／水藍：它們不屬於粉或紫，所以不會跟任何一寶撞色
+    feed: '#E9C07A',
+    diaper: '#7FB6D0',
+    inkOnAction: '#3D2A30',
+    warn: '#9E3A46',
+    warnSoft: '#FBE2E6',
+    onWarn: '#FFFFFF',
+    overlay: 'rgba(70, 49, 56, 0.35)',
+    baby: {
+      peach: { base: '#DE8098', soft: '#FBE0E8', on: '#57202E' },
+      mint: { base: '#9184C4', soft: '#DFDAF0', on: '#2B2350' },
+    },
+  },
+  dark: {
+    bg: '#17131A',
+    card: '#241E28',
+    cardBorder: '#342B39',
+    primary: '#E89EB6',
+    primarySoft: '#3A2430',
+    text: '#EFE3E8',
+    textMuted: '#A08E97',
+    feed: '#F0CE8E',
+    diaper: '#8FBFD8',
+    inkOnAction: '#1F1418',
+    warn: '#E8909C',
+    warnSoft: '#3A2228',
+    onWarn: '#1F1418',
+    overlay: 'rgba(0, 0, 0, 0.6)',
+    baby: {
+      // 粉調亮、紫調暗 —— 亮度比約 1.36:1
+      peach: { base: '#E89EB6', soft: '#43242F', on: '#F9DDE6' },
+      mint: { base: '#A99BD6', soft: '#15121E', on: '#E2DCF5' },
+    },
+  },
+};
+
+/**
+ * 海鹽藍。冷色低刺激。
+ * ⚠️ 這一組最容易踩到「動作色跟主色撞在一起」——整組都是藍，
+ * 所以尿布的動作色改用【青綠】而不是水藍，跟主色與識別色都拉開。
+ */
+const seasalt: { light: Palette; dark: Palette } = {
+  light: {
+    bg: '#F5FAFB',
+    card: '#FFFFFF',
+    cardBorder: '#DBE8EC',
+    primary: '#3B7787',
+    primarySoft: '#DCEDF1',
+    text: '#2E3E44',
+    textMuted: '#6C7E86',
+    feed: '#E8C87F',
+    diaper: '#59A18C',
+    inkOnAction: '#222E33',
+    warn: '#9B4030',
+    warnSoft: '#FAE3DE',
+    onWarn: '#FFFFFF',
+    overlay: 'rgba(46, 62, 68, 0.35)',
+    baby: {
+      peach: { base: '#DD7458', soft: '#FBE0D8', on: '#571F12' },
+      mint: { base: '#6A9FC4', soft: '#D5E6F2', on: '#1C3A50' },
+    },
+  },
+  dark: {
+    bg: '#10171A',
+    card: '#1B252A',
+    cardBorder: '#28373E',
+    primary: '#7FC0D0',
+    primarySoft: '#1E3138',
+    text: '#DFEBEF',
+    textMuted: '#8A9BA3',
+    feed: '#F0CE8E',
+    diaper: '#79C4AC',
+    inkOnAction: '#101619',
+    warn: '#E89078',
+    warnSoft: '#38221C',
+    onWarn: '#101619',
+    overlay: 'rgba(0, 0, 0, 0.6)',
+    baby: {
+      // 珊瑚調亮、天藍調暗 —— 亮度比約 1.40:1
+      peach: { base: '#EF9478', soft: '#3C241D', on: '#FBDDD2' },
+      mint: { base: '#7FB0D6', soft: '#101A22', on: '#D6E6F5' },
+    },
+  },
+};
+
+export const palettes: Record<SkinKey, { light: Palette; dark: Palette }> = {
+  warmwood,
+  sakura,
+  seasalt,
+};
+
+/**
+ * @deprecated 舊的單一色票入口。留著只是為了不一次改壞太多檔案，
+ * 新程式碼請用 useTheme()。
+ */
+export const palette = warmwood;
+
 /** 間距刻度。全專案只用這些數字，不要出現 magic number。 */
 export const spacing = {
   xs: 4,
@@ -147,10 +274,14 @@ export const TAB_BAR_HEIGHT = 64;
  * 半透明色沒有這個問題：它疊在 tabBarStyle 的背景上，而那一層會正常跟著主題更新。
  * 值本身不隨主題改變，所以沒有東西會過期。
  *
- * 22% 的 primary：疊在淺色的 #FFFFFF 上是柔和的奶茶色，疊在深色的 #221F27 上
- * 是明顯的暖褐塊，兩邊都看得出來。
+ * ⚠️ 有三組皮膚之後這個值【也不能跟著皮膚變】——同樣的記憶化問題，
+ * 換皮膚後沒被造訪過的 tab 會留著舊皮膚的顏色。所以改用中性灰：
+ * 22% 的灰疊在淺色背景上會壓暗、疊在深色背景上會提亮，三組皮膚都成立。
+ *
+ * 代價是失去了暖木的性格。可接受 —— 選中狀態還有另外兩個會正常重繪的訊號
+ * （emoji 放大、標籤加粗），底色只是第三個。
  */
-export const TAB_ACTIVE_TINT = 'rgba(192, 133, 82, 0.22)';
+export const TAB_ACTIVE_TINT = 'rgba(127, 127, 127, 0.22)';
 
 export const fontSize = {
   xs: 12,

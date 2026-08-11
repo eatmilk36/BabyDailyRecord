@@ -8,6 +8,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { db } from '../db/client';
 import migrations from '../drizzle/migrations';
+import { SettingsProvider } from '../lib/settings';
 import { fontSize, spacing } from '../theme/colors';
 import { useTheme } from '../theme/useTheme';
 
@@ -21,12 +22,25 @@ import { useTheme } from '../theme/useTheme';
  * 所以我們不需要裝任何 bottom-sheet 套件。
  */
 export default function RootLayout() {
-  const t = useTheme();
   const { success, error } = useMigrations(db, migrations);
   const [fontsLoaded] = useFonts({ Nunito_700Bold, Nunito_800ExtraBold });
 
   if (error) return <Splash message={`資料庫錯誤：${error.message}`} isError />;
   if (!success || !fontsLoaded) return <Splash message="準備中…" />;
+
+  return (
+    <SettingsProvider>
+      <ThemedShell />
+    </SettingsProvider>
+  );
+}
+
+/**
+ * 導航結構。拆出來是因為它要讀 useTheme()，而 useTheme() 需要
+ * SettingsProvider 已經在上層 —— 同一個元件裡辦不到。
+ */
+function ThemedShell() {
+  const t = useTheme();
 
   return (
     <SafeAreaProvider>

@@ -138,6 +138,24 @@ export const events = sqliteTable(
   ],
 );
 
+/**
+ * 偏好設定（皮膚、深淺模式、語言）。
+ *
+ * 存在 SQLite 而不是 AsyncStorage：這個專案已經有資料庫，多裝一個 key-value
+ * 套件只是多一個相依；而且存在這裡，「匯出 JSON 備份」就順便把偏好帶走了。
+ *
+ * 刻意用 key-value 而不是固定欄位：之後再加偏好不用寫 migration。
+ * 值一律存字串，讀出來時在 lib/settings.tsx 做型別守衛 ——
+ * 這是外部資料（使用者可能改過備份檔），不能信任。
+ */
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export type Setting = typeof settings.$inferSelect;
+
 export type Baby = typeof babies.$inferSelect;
 export type NewBaby = typeof babies.$inferInsert;
 export type BabyEvent = typeof events.$inferSelect;
