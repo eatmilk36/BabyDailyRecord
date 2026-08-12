@@ -41,13 +41,10 @@ export function sideLabel(side: NursingSide): string {
 export function diaperKindLabel(k: NonNullable<BabyEvent['diaperKind']>): string {
   return t(`diaperKind.${k}`);
 }
-export const DIAPER_COLOR_LABEL = {
-  yellow: '黃',
-  green: '綠',
-  brown: '褐',
-  black: '黑',
-  white: '白',
-} as const;
+/** 舊資料的自由顏色欄位。UI 已移除，只剩摘要顯示與 CSV 匯出會用到 */
+export function diaperColorLabel(c: NonNullable<BabyEvent['diaperColor']>): string {
+  return t(`color.${c}`);
+}
 
 /**
  * 台灣兒童健康手冊「九色大便卡」。
@@ -74,11 +71,17 @@ export function isStoolCardAbnormal(n: number | null | undefined): boolean {
 }
 
 export function stoolCardLabel(n: number): string {
-  return n === STOOL_CARD_UNSURE ? '說不準' : String(n);
+  return n === STOOL_CARD_UNSURE ? t('stool.unsure') : String(n);
 }
 
-export const STOOL_CARD_ALERT =
-  '這個顏色屬於需要注意的範圍。膽道閉鎖若能在出生 60 天內接受葛西手術，10 年存活率可達 73%，越早發現越好。\n\n請盡快帶寶寶就醫，並在滿 30 天打 B 肝疫苗時主動請醫護人員做大便顏色評估。\n\n兒童肝膽疾病防治基金會諮詢專線：(02) 2382-0886（平日 8:30–17:30）';
+/**
+ * 就醫警示的內文原本是這個檔案裡的 STOOL_CARD_ALERT 常數，現在住在
+ * lib/i18n.ts 的 `stool.alertBody`。
+ *
+ * ⚠️ 搬過去的時候【英文版是加註而不是直譯】—— 那張卡是台灣兒童健康手冊裡的
+ * 實體卡片、那支專線是台灣號碼而且只有中文接線。完整理由寫在 i18n.ts 的
+ * 「九色大便卡（醫療）」那一區，改字之前先讀那段。
+ */
 
 /** 舊資料用的自由顏色欄位，已從 UI 移除，僅保留顯示 */
 export const DIAPER_COLOR_SWATCH = {
@@ -150,10 +153,10 @@ export function summarizeEvent(e: BabyEvent): string {
 
   const parts: string[] = [e.diaperKind ? diaperKindLabel(e.diaperKind) : t('sum.diaperPlain')];
   if (e.stoolCard != null) {
-    parts.push(`大便卡 ${stoolCardLabel(e.stoolCard)}`);
+    parts.push(t('stool.summary', { n: stoolCardLabel(e.stoolCard) }));
   } else if (e.diaperColor) {
     // 舊資料
-    parts.push(DIAPER_COLOR_LABEL[e.diaperColor]);
+    parts.push(diaperColorLabel(e.diaperColor));
   }
   const summary = parts.join(' · ');
 

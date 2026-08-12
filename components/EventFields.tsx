@@ -13,7 +13,6 @@ import {
   sideLabel,
   SLEEP_PRESETS,
   STOOL_CARD_ABNORMAL,
-  STOOL_CARD_ALERT,
   STOOL_CARD_NORMAL,
   STOOL_CARD_UNSURE,
   stoolCardLabel,
@@ -159,20 +158,20 @@ function DiaperFields({ event, tint, onPatch }: Props) {
           從首頁按「尿布」建立的紀錄 diaperKind 是 null，大便卡整區不會出現；
           如果連「要先選便」的說明也關在門後，使用者就永遠不會知道要點哪裡才展開。 */}
       {showStool ? null : (
-        <Text style={[styles.note, { color: t.textMuted }]}>
-          選「便」或「尿+便」會展開九色大便卡，可以記下大便顏色編號。
-        </Text>
+        <Text style={[styles.note, { color: t.textMuted }]}>{tr('stool.pickHint')}</Text>
       )}
 
       {showStool ? (
         <View style={styles.stoolBlock}>
+          {/* ⚠️ 英文版這兩句是【加註】不是直譯：中文原名要一起出現，只讀英文的
+              照顧者才找得到手冊裡那張實體卡片。理由寫在 lib/i18n.ts。 */}
           <Text style={[styles.note, { color: t.textMuted }]}>
-            拿出寶寶手冊裡的「九色大便卡」，對照實體卡片後點下最接近的編號。
+            {tr('stool.compareHint1')}
             {'\n'}
-            手機螢幕沒有色彩校準（而你現在可能把亮度調到最低），所以這裡不放色塊。
+            {tr('stool.compareHint2')}
           </Text>
 
-          <Section label="正常（7–9）">
+          <Section label={tr('stool.sectionNormal')}>
             {STOOL_CARD_NORMAL.map((n) => (
               <Chip
                 key={n}
@@ -184,7 +183,7 @@ function DiaperFields({ event, tint, onPatch }: Props) {
             ))}
           </Section>
 
-          <Section label="需要注意（1–6）">
+          <Section label={tr('stool.sectionWatch')}>
             {[...STOOL_CARD_ABNORMAL, STOOL_CARD_UNSURE].map((n) => (
               <Chip
                 key={n}
@@ -199,7 +198,7 @@ function DiaperFields({ event, tint, onPatch }: Props) {
                   onPatch({ stoolCard: clearing ? null : n });
                   // 1–6 與「說不準」都要警示：官方指引把「介於之間」也算進去
                   if (!clearing && isStoolCardAbnormal(n)) {
-                    Alert.alert('請盡快就醫', STOOL_CARD_ALERT);
+                    Alert.alert(tr('stool.alertTitle'), tr('stool.alertBody'));
                   }
                 }}
               />
@@ -209,8 +208,9 @@ function DiaperFields({ event, tint, onPatch }: Props) {
           {isStoolCardAbnormal(event.stoolCard) ? (
             <View style={[styles.alertBox, { backgroundColor: t.warnSoft, borderColor: t.warn }]}>
               <Text style={[styles.alertText, { color: t.warn }]}>
-                ⚠ 這個編號需要就醫評估。滿 30 天打 B 肝疫苗時務必主動請醫護人員看大便顏色。
-                {'\n'}兒童肝膽疾病防治基金會：(02) 2382-0886
+                {tr('stool.inlineWarn1')}
+                {'\n'}
+                {tr('stool.inlineWarn2')}
               </Text>
             </View>
           ) : null}

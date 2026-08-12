@@ -120,7 +120,9 @@ export default function Home() {
       const id = await startNursing(babyId, suggestNextSide(events, babyId));
       // 排一則本地通知當守護。第一次會跳權限請求；被拒絕就只剩 APP 內橫幅，
       // 記錄本身完全不受影響，所以不擋流程也不報錯。
-      const name = babies.find((b) => b.id === babyId)?.name ?? '寶寶';
+      // 第 1 批漏掉的硬字串。實務上不會走到（onboarding 強制填名字），
+      // 但它會進通知內文，而通知內文本身還沒翻（第 5 批）。
+      const name = babies.find((b) => b.id === babyId)?.name ?? tr('common.babyFallback');
       void scheduleNursingOverdue(id, NURSING_OVERDUE_MIN, name);
     });
   }

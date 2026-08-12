@@ -3,8 +3,9 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { dumpAll } from '../db/queries';
 import type { Baby, BabyEvent } from '../db/schema';
+import { t } from './i18n';
 import {
-  DIAPER_COLOR_LABEL,
+  diaperColorLabel,
   diaperKindLabel,
   isStoolCardAbnormal,
   methodLabel,
@@ -118,8 +119,8 @@ function toCsvRow(e: BabyEvent, babyById: Map<string, Baby>): string[] {
     e.diaperKind ? diaperKindLabel(e.diaperKind) : '',
     e.stoolCard != null ? stoolCardLabel(e.stoolCard) : '',
     // 獨立一欄標出異常，醫生掃 CSV 時不用自己記 1–6 的規則
-    isStoolCardAbnormal(e.stoolCard) ? '異常' : '',
-    e.diaperColor ? DIAPER_COLOR_LABEL[e.diaperColor] : '',
+    isStoolCardAbnormal(e.stoolCard) ? t('stool.csvAbnormal') : '',
+    e.diaperColor ? diaperColorLabel(e.diaperColor) : '',
     // 生長紀錄的三個量測。原本完全沒有欄位，等於「生長紀錄匯出後是空白列」。
     // 用純數字不帶單位，欄名已經寫了 kg/cm，這樣 Excel 才能直接畫圖。
     e.weightG != null ? (e.weightG / 1000).toFixed(2) : '',

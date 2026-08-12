@@ -211,6 +211,45 @@ const zh = {
   'note.stillSleeping': '還在睡。回首頁按「結束」才會算時長。',
   'note.growthUnits': '內部用公克／公釐這種整數存，避免浮點數累積誤差。',
 
+  // ---- 九色大便卡（醫療）----
+  //
+  // ⚠️⚠️ 這一區的英文【不是翻譯，是加註】。三個理由：
+  //
+  //  1.「九色大便卡」是台灣兒童健康手冊裡的一張【實體卡片】。只讀英文的照顧者
+  //     看到 "nine-colour stool card" 不會知道要去翻哪一本、哪一頁 —— 所以英文版
+  //     把中文原名一起寫出來，讓他能拿著手冊認字比對。少了這個加註，整個功能
+  //     對他來說是不可用的。
+  //  2. 諮詢專線是台灣號碼而且只有中文服務。直譯成 "helpline: (02) 2382-0886"
+  //     會讓一個只講英文的照顧者打過去卡住 —— 那是在最不該浪費時間的情況下
+  //     浪費時間。英文版明講「台灣號碼、中文接線」並給替代路徑（直接看小兒科、
+  //     把尿布給醫師看）。
+  //  3. 滿 30 天打 B 肝疫苗是台灣的常規接種時程。英文版要點出那是「你本來就會去
+  //     的那次門診」，否則讀起來像在叫他為這件事多跑一趟。
+  //
+  // 醫學數字（60 天、葛西手術、10 年存活率 73%）兩個版本【完全一致】。
+  // 加註只加脈絡，不動事實 —— 這是加註與改寫的界線。
+  'stool.pickHint': '選「便」或「尿+便」會展開九色大便卡，可以記下大便顏色編號。',
+  'stool.compareHint1': '拿出寶寶手冊裡的「九色大便卡」，對照實體卡片後點下最接近的編號。',
+  'stool.compareHint2': '手機螢幕沒有色彩校準（而你現在可能把亮度調到最低），所以這裡不放色塊。',
+  'stool.sectionNormal': '正常（7–9）',
+  'stool.sectionWatch': '需要注意（1–6）',
+  'stool.unsure': '說不準',
+  'stool.alertTitle': '請盡快就醫',
+  'stool.alertBody':
+    '這個顏色屬於需要注意的範圍。膽道閉鎖若能在出生 60 天內接受葛西手術，10 年存活率可達 73%，越早發現越好。\n\n請盡快帶寶寶就醫，並在滿 30 天打 B 肝疫苗時主動請醫護人員做大便顏色評估。\n\n兒童肝膽疾病防治基金會諮詢專線：(02) 2382-0886（平日 8:30–17:30）',
+  'stool.inlineWarn1': '⚠ 這個編號需要就醫評估。滿 30 天打 B 肝疫苗時務必主動請醫護人員看大便顏色。',
+  'stool.inlineWarn2': '兒童肝膽疾病防治基金會：(02) 2382-0886',
+  'stool.summary': '大便卡 {n}',
+  /** CSV 的「大便卡異常」欄。表頭本身還是中文（第 5 批），但值跟著語言走 */
+  'stool.csvAbnormal': '異常',
+
+  // 舊資料的自由顏色欄位。UI 已經移除，只剩顯示與匯出還會用到
+  'color.yellow': '黃',
+  'color.green': '綠',
+  'color.brown': '褐',
+  'color.black': '黑',
+  'color.white': '白',
+
   // ---- 單寶彈窗 ----
   'modal.eventTitle': '紀錄細節',
   'modal.sessionTitle': '兩寶紀錄',
@@ -440,6 +479,35 @@ const en: Record<I18nKey, string> = {
   'note.stillSleeping': 'Still sleeping. Tap “End sleep” on Home to record the duration.',
   'note.growthUnits':
     'Stored internally as whole grams / millimetres to avoid floating-point drift.',
+
+  // ---- 九色大便卡：加註版，不是直譯。理由寫在上面 zh 那一區 ----
+  'stool.pickHint':
+    'Choose “Dirty” or “Wet + dirty” to open the stool colour card and record the colour number.',
+  // 「把中文原名一起寫出來」是這一批最重要的加註 —— 少了它，只讀英文的
+  // 照顧者拿著手冊也找不到那一頁，整個功能對他是不可用的。
+  'stool.compareHint1':
+    'Get out the printed nine-colour stool card (九色大便卡). It is in the Taiwan Children’s Health Handbook (兒童健康手冊) — the baby’s health booklet. Compare against the printed card, then tap the closest number.',
+  'stool.compareHint2':
+    'Phone screens are not colour-calibrated (and you may have the brightness turned right down), so there are no colour patches here.',
+  'stool.sectionNormal': 'Normal (7–9)',
+  'stool.sectionWatch': 'Needs attention (1–6)',
+  'stool.unsure': 'Not sure',
+  'stool.alertTitle': 'See a doctor promptly',
+  // 前兩段的醫學數字與中文版逐字對應。第三段是加註：講明專線的國別與語言
+  // 限制，並給一條不需要打電話的路。
+  'stool.alertBody':
+    'This colour is in the range that needs attention. For biliary atresia, a Kasai procedure within 60 days of birth gives a 10-year survival rate of up to 73% — the earlier it is found, the better.\n\nTake your baby to a doctor as soon as you can, and ask the staff to assess the stool colour at the 1-month hepatitis-B vaccination visit (a routine visit on the Taiwan schedule).\n\nHelpline: (02) 2382-0886, weekdays 8:30–17:30, run by 兒童肝膽疾病防治基金會 (the children’s liver and biliary disease foundation). It is a Taiwan number and is answered in Mandarin — if you cannot use it, go straight to a paediatrician and show them the nappy.',
+  'stool.inlineWarn1':
+    '⚠ This number needs a doctor’s assessment. At the 1-month hepatitis-B vaccination visit, make a point of asking the staff to look at the stool colour.',
+  'stool.inlineWarn2': 'Helpline (Taiwan number, Mandarin): (02) 2382-0886',
+  'stool.summary': 'stool card {n}',
+  'stool.csvAbnormal': 'Abnormal',
+
+  'color.yellow': 'Yellow',
+  'color.green': 'Green',
+  'color.brown': 'Brown',
+  'color.black': 'Black',
+  'color.white': 'White',
 
   'modal.eventTitle': 'Entry',
   'modal.sessionTitle': 'Both babies',
