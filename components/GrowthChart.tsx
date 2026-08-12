@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 import type { GrowthPoint } from '../db/queries';
 import type { Baby } from '../db/schema';
+import { useT } from '../lib/useT';
 import { fontSize, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
 import { useTheme } from '../theme/useTheme';
@@ -39,6 +40,7 @@ type Props = {
  */
 export function GrowthChart({ series, metric, format, height = 160 }: Props) {
   const t = useTheme();
+  const tr = useT();
 
   const withData = series
     .map((s) => ({
@@ -49,9 +51,7 @@ export function GrowthChart({ series, metric, format, height = 160 }: Props) {
 
   if (withData.length === 0) {
     return (
-      <Text style={[styles.empty, { color: t.textMuted }]}>
-        還沒有這項測量的紀錄。量過之後這裡會出現曲線。
-      </Text>
+      <Text style={[styles.empty, { color: t.textMuted }]}>{tr('growth.empty')}</Text>
     );
   }
 
@@ -200,19 +200,25 @@ function Delta({
   format: (v: number) => string;
 }) {
   const t = useTheme();
+  const tr = useT();
   const la = a.pts[a.pts.length - 1];
   const lb = b.pts[b.pts.length - 1];
   const diff = Math.abs((la[metric] as number) - (lb[metric] as number));
   const day = (ms: number) => formatDate(new Date(ms), 'yyyy-MM-dd');
+  const short = (ms: number) => formatDate(new Date(ms), 'M/d');
   const sameDay = day(la.at) === day(lb.at);
 
   return (
     <Text style={[styles.delta, { color: sameDay ? t.textMuted : t.warn }]}>
-      最新差距 {format(diff)}
       {sameDay
-        ? `（${formatDate(new Date(la.at), 'M/d')} 同一天量的）`
-        : `　⚠ 不是同一天量的：${a.baby.name} ${formatDate(new Date(la.at), 'M/d')}、` +
-          `${b.baby.name} ${formatDate(new Date(lb.at), 'M/d')}`}
+        ? tr('growth.deltaSameDay', { value: format(diff), date: short(la.at) })
+        : tr('growth.deltaDiffDay', {
+            value: format(diff),
+            a: a.baby.name,
+            aDate: short(la.at),
+            b: b.baby.name,
+            bDate: short(lb.at),
+          })}
     </Text>
   );
 }

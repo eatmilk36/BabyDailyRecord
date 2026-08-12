@@ -16,6 +16,7 @@ import {
 import type { BabyEvent } from '../../db/schema';
 import { summarizeEvent } from '../../lib/labels';
 import { formatClock, formatDayLabelMs, isSameDay, shiftDay, startOfToday } from '../../lib/time';
+import { useT } from '../../lib/useT';
 import { useNow } from '../../lib/useNow';
 import { fontSize, radius, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
@@ -33,6 +34,7 @@ const UNDO_WINDOW_MS = 5000;
  */
 export default function History() {
   const t = useTheme();
+  const tr = useT();
   const now = useNow(60_000);
   const insets = useSafeAreaInsets();
   const { babies, error: babiesError } = useBabies();
@@ -89,16 +91,16 @@ export default function History() {
    */
   function handleDelete(e: BabyEvent, babyName?: string) {
     const label = `${formatClock(e.occurredAt)} · ${babyName ? `${babyName} · ` : ''}${summarizeEvent(e)}`;
-    Alert.alert('刪除這筆紀錄？', label, [
-      { text: '取消', style: 'cancel' },
+    Alert.alert(tr('history.deleteConfirm'), label, [
+      { text: tr('common.cancel'), style: 'cancel' },
       {
-        text: '刪除',
+        text: tr('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await softDeleteEvent(e.id);
           } catch (err) {
-            Alert.alert('刪不掉', err instanceof Error ? err.message : String(err));
+            Alert.alert(tr('history.deleteFailed'), err instanceof Error ? err.message : String(err));
             return;
           }
           setUndo((prev) => [...prev, { id: e.id, label }]);
@@ -114,7 +116,7 @@ export default function History() {
     try {
       for (const u of undo) await restoreEvent(u.id);
     } catch (err) {
-      Alert.alert('復原失敗', err instanceof Error ? err.message : String(err));
+      Alert.alert(tr('history.undoFailed'), err instanceof Error ? err.message : String(err));
       return;
     }
     setUndo([]);
@@ -124,7 +126,7 @@ export default function History() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]} edges={['top']}>
       <View style={styles.head}>
-        <Text style={[styles.title, { color: t.text }]}>紀錄</Text>
+        <Text style={[styles.title, { color: t.text }]}>{tr('history.title')}</Text>
 
         <View style={styles.dateNav}>
           <Arrow label="‹" onPress={() => setDayStart(shiftDay(dayStart, -1))} />
@@ -140,7 +142,9 @@ export default function History() {
               {formatDayLabelMs(dayStart, now)}
             </Text>
             {!atToday ? (
-              <Text style={[styles.todayLink, { color: t.primary }]}>點一下回到今天</Text>
+              <Text style={[styles.todayLink, { color: t.primary }]}>
+                {tr('history.backToToday')}
+              </Text>
             ) : null}
           </Pressable>
           {/* 不能往未來翻 */}
@@ -161,8 +165,8 @@ export default function History() {
         {/* 查詢失敗時 loaded 永遠是 false，所以下面那個「今天還沒有紀錄」
             的空狀態被 `loaded &&` 擋住，events.map 也印不出東西 ——
             結果是標題底下一片【全白】，比顯示錯誤更難診斷。 */}
-        <QueryError error={babiesError} what="寶寶資料" />
-        <QueryError error={eventsError} what="這一天的紀錄" />
+        <QueryError error={babiesError} what="error.whatBabies" />
+        <QueryError error={eventsError} what="error.whatDayEvents" />
 
         {/* 分寶單日總結——回診時醫生問的就是這幾個數字 */}
         {babies.map((b) => (
@@ -190,11 +194,15 @@ export default function History() {
         {loaded && events.length === 0 ? (
           <View style={styles.emptyWrap}>
             <Text style={[styles.empty, { color: t.textMuted }]}>
-              {atToday ? '今天還沒有紀錄。回首頁按下大按鈕就會出現在這裡。' : '這天沒有紀錄。'}
+              {tr(atToday ? 'history.emptyToday' : 'history.emptyOther')}
             </Text>
             {!atToday ? (
               <View style={styles.emptyAction}>
-                <SlimButton label="回到今天" tint={t.primary} onPress={() => setDayStart(startOfToday())} />
+                <SlimButton
+                  label={tr('history.returnToday')}
+                  tint={t.primary}
+                  onPress={() => setDayStart(startOfToday())}
+                />
               </View>
             ) : null}
           </View>
@@ -231,7 +239,9 @@ export default function History() {
               而且連續刪兩筆時第一筆會被靜默覆蓋。 */}
           <View style={styles.undoBody}>
             <Text style={[styles.undoText, { color: t.text }]}>
-              {undo.length === 1 ? '已刪除' : `已刪除 ${undo.length} 筆`}
+              {undo.length === 1
+                ? tr('history.deletedOne')
+                : tr('history.deletedMany', { n: undo.length })}
             </Text>
             <Text style={[styles.undoDetail, { color: t.textMuted }]} numberOfLines={1}>
               {undo[undo.length - 1].label}
@@ -239,7 +249,7 @@ export default function History() {
           </View>
           <View style={styles.undoButton}>
             <SlimButton
-              label={undo.length === 1 ? '復原' : '全部復原'}
+              label={undo.length === 1 ? tr('common.restore') : tr('history.undoAll')}
               tint={t.primary}
               filled
               onPress={handleUndo}

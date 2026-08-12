@@ -1,4 +1,4 @@
-import { t } from './i18n';
+import { getCurrentLang, t } from './i18n';
 import {
   addDays,
   addMonths,
@@ -19,18 +19,19 @@ import {
 export function formatAgo(ms: number, now: number = Date.now()): string {
   const diffMin = Math.floor((now - ms) / 60000);
 
-  if (diffMin < 1) return '剛剛';
-  if (diffMin < 60) return `${diffMin} 分鐘前`;
+  if (diffMin < 1) return t('time.justNow');
+  if (diffMin < 60) return t('time.minAgo', { n: diffMin });
 
   const hours = Math.floor(diffMin / 60);
   const mins = diffMin % 60;
 
   if (hours < 24) {
-    return mins === 0 ? `${hours} 小時前` : `${hours} 小時 ${mins} 分前`;
+    return mins === 0 ? t('time.hourAgo', { h: hours }) : t('time.hourMinAgo', { h: hours, m: mins });
   }
 
   const days = Math.floor(hours / 24);
-  return `${days} 天前`;
+  // 英文的 1 day / N days 要分開，中文兩個字典值一樣所以無害
+  return t(days === 1 ? 'time.dayAgo_one' : 'time.dayAgo', { n: days });
 }
 
 /** 「13:20」 */
@@ -62,11 +63,13 @@ export function formatBabyAge(birthDate: string, now: number = Date.now()): stri
 
   if (months < 1) {
     const days = differenceInCalendarDays(nowDate, birth);
-    return `出生 ${Math.max(0, days)} 天`;
+    return t('time.ageDays', { d: Math.max(0, days) });
   }
 
   const days = differenceInCalendarDays(nowDate, addMonths(birth, months));
-  return days === 0 ? `${months} 個月` : `${months} 個月 ${days} 天`;
+  return days === 0
+    ? t('time.ageMonth', { mo: months })
+    : t('time.ageMonthDay', { mo: months, d: days });
 }
 
 /** 依當地時區的今天零點（epoch ms） */
@@ -83,8 +86,13 @@ export function dayKey(ms: number): string {
 export function formatDayLabel(key: string, now: number = Date.now()): string {
   const date = parseISO(key);
   const diff = differenceInCalendarDays(startOfDay(new Date(now)), date);
-  if (diff === 0) return '今天';
-  if (diff === 1) return '昨天';
+  if (diff === 0) return t('time.today');
+  if (diff === 1) return t('time.yesterday');
+
+  // 日期格式本身也要換：中文是「8月12日 週三」，英文用 date-fns 的預設
+  // 英文 locale（Aug 12 · Wed）。這不是字串翻譯，是格式差異，所以不進字典。
+  if (getCurrentLang() === 'en') return format(date, 'MMM d · EEE');
+
   const weekdays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
   return `${format(date, 'M月d日')} ${weekdays[date.getDay()]}`;
 }

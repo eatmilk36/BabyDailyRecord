@@ -1,12 +1,17 @@
 import { StyleSheet, Text, View } from 'react-native';
+import type { I18nKey } from '../lib/i18n';
+import { useT } from '../lib/useT';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { useTheme } from '../theme/useTheme';
 
 type Props = {
   /** useLiveQuery 回傳的 error。undefined 就不渲染任何東西 */
   error?: unknown;
-  /** 「讀取<什麼>時出錯」，例如「寶寶資料」、「今天的紀錄」 */
-  what: string;
+  /**
+   * 「讀取<什麼>時出錯」的那個「什麼」。
+   * 收 I18nKey 而不是字串 —— 否則呼叫端會寫死中文，語言切了它不會變。
+   */
+  what: I18nKey;
 };
 
 /**
@@ -31,19 +36,18 @@ type Props = {
  */
 export function QueryError({ error, what }: Props) {
   const t = useTheme();
+  const tr = useT();
   if (!error) return null;
 
   const message = error instanceof Error ? error.message : String(error);
 
   return (
     <View style={[styles.box, { backgroundColor: t.warnSoft, borderColor: t.warn }]}>
-      <Text style={[styles.title, { color: t.warn }]}>⚠ 讀取{what}時出錯</Text>
-      <Text style={[styles.detail, { color: t.warn }]}>{message}</Text>
-      <Text style={[styles.detail, { color: t.warn }]}>
-        這個畫面上的數字可能不完整或全部是 0，不要當成真的。
-        {'\n'}
-        請先到「設定 → 匯出 JSON 備份」把資料存出來，再截圖這段訊息。
+      <Text style={[styles.title, { color: t.warn }]}>
+        {tr('error.queryTitle', { what: tr(what) })}
       </Text>
+      <Text style={[styles.detail, { color: t.warn }]}>{message}</Text>
+      <Text style={[styles.detail, { color: t.warn }]}>{tr('error.queryHint')}</Text>
     </View>
   );
 }

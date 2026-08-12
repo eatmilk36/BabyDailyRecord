@@ -74,7 +74,7 @@ export default function Home() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]}>
         <View style={styles.errorWrap}>
-          <QueryError error={babiesError} what="寶寶資料" />
+          <QueryError error={babiesError} what="error.whatBabies" />
         </View>
       </SafeAreaView>
     );
@@ -215,8 +215,8 @@ export default function Home() {
       >
         {/* 紀錄讀不到時，卡片上的「還沒有喝奶紀錄」「今天 0 次奶」全都是假的 ——
             那個畫面跟「今天真的還沒餵」長得一模一樣。必須說出來。 */}
-        <QueryError error={eventsError} what="最近的紀錄" />
-        <QueryError error={stashError} what="母乳庫存" />
+        <QueryError error={eventsError} what="error.whatRecentEvents" />
+        <QueryError error={stashError} what="error.whatStash" />
 
         <View style={styles.header}>
           <Text style={[styles.greeting, { color: t.text }]}>{greeting(now)}</Text>

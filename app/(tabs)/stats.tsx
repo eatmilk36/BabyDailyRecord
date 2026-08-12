@@ -15,7 +15,9 @@ import {
   useMilkStashMl,
   useRecentEvents,
 } from '../../db/queries';
+import { plural, type I18nKey } from '../../lib/i18n';
 import { formatLength, formatMinutes, formatWeight } from '../../lib/labels';
+import { useT } from '../../lib/useT';
 import type { BabyEvent } from '../../db/schema';
 import { dayKey, formatDayLabelMs, shiftDay, startOfToday } from '../../lib/time';
 import { useActionLock } from '../../lib/useActionLock';
@@ -26,10 +28,10 @@ import { useTheme } from '../../theme/useTheme';
 
 const DAYS = 14;
 
-const METRICS: { key: GrowthMetric; label: string; format: (v: number) => string }[] = [
-  { key: 'weightG', label: '體重', format: formatWeight },
-  { key: 'heightMm', label: '身長', format: formatLength },
-  { key: 'headMm', label: '頭圍', format: formatLength },
+const METRICS: { key: GrowthMetric; label: I18nKey; format: (v: number) => string }[] = [
+  { key: 'weightG', label: 'stats.weight', format: formatWeight },
+  { key: 'heightMm', label: 'stats.height', format: formatLength },
+  { key: 'headMm', label: 'stats.head', format: formatLength },
 ];
 
 /**
@@ -39,6 +41,7 @@ const METRICS: { key: GrowthMetric; label: string; format: (v: number) => string
  */
 export default function Stats() {
   const t = useTheme();
+  const tr = useT();
   const now = useNow(60_000);
   const insets = useSafeAreaInsets();
   const { babies, error: babiesError } = useBabies();
@@ -103,42 +106,38 @@ export default function Stats() {
           { paddingBottom: TAB_BAR_HEIGHT + insets.bottom + spacing.xxl },
         ]}
       >
-        <Text style={[styles.title, { color: t.text }]}>統計</Text>
+        <Text style={[styles.title, { color: t.text }]}>{tr('stats.title')}</Text>
 
         {/* 這一頁失敗時最危險：babies=[] 讓趨勢卡與記錄按鈕整批消失、
             stash 被 `?? 0` 填成 0、growth=[] 讓曲線顯示「還沒有這項測量的紀錄」。
             三個 fallback 疊起來是一個排版完整、文案通順、看起來就是
             「功能有但還沒記過資料」的畫面 —— 完全看不出查詢其實失敗了。 */}
-        <QueryError error={babiesError} what="寶寶資料" />
-        <QueryError error={eventsError} what="最近的紀錄" />
-        <QueryError error={growthError} what="生長紀錄" />
-        <QueryError error={stashError} what="母乳庫存" />
+        <QueryError error={babiesError} what="error.whatBabies" />
+        <QueryError error={eventsError} what="error.whatRecentEvents" />
+        <QueryError error={growthError} what="error.whatGrowth" />
+        <QueryError error={stashError} what="error.whatStash" />
 
         {/* ---- 母乳庫存 ---- */}
         <View style={[styles.card, { backgroundColor: t.card, borderColor: t.cardBorder }]}>
-          <Text style={[styles.cardTitle, { color: t.text }]}>母乳庫存</Text>
+          <Text style={[styles.cardTitle, { color: t.text }]}>{tr('stats.milkStash')}</Text>
           {/* stash = 擠出 − 瓶餵母奶，所以【可以是負的】：你在開始用這個 APP
               之前就有的冷凍庫存，或有幾次擠奶忘了記，都會讓瓶餵量大於擠出量。
               原本直接印負數，而旁邊還寫著「不會跟紀錄對不上」—— 看起來像壞了。
               現在庫存顯示 0，把差額當成獨立的一句話講清楚。 */}
           <Text style={[styles.big, { color: t.primary }]}>{Math.max(0, stash)} ml</Text>
           <Text style={[styles.note, { color: t.textMuted }]}>
-            擠出 {pumped} ml − 瓶餵母奶 {used} ml
+            {tr('stats.stashBreakdown', { pumped, used })}
           </Text>
           {stash < 0 ? (
             <View style={[styles.warnBox, { backgroundColor: t.warnSoft, borderColor: t.warn }]}>
               <Text style={[styles.warnText, { color: t.warn }]}>
-                瓶餵的母奶比記錄到的擠奶多了 {-stash} ml。
+                {tr('stats.stashNegativeTitle', { n: -stash })}
                 {'\n'}
-                通常是這兩個原因：開始用這個 APP 之前就有冷凍庫存，
-                或有幾次擠奶忘了記。庫存只能從紀錄推導，所以先當成 0。
+                {tr('stats.stashNegativeWhy')}
               </Text>
             </View>
           ) : null}
-          <Text style={[styles.note, { color: t.textMuted }]}>
-            這個數字是從紀錄推導的，不是另外存的欄位。也就是說：它只反映你【記下來的】
-            擠奶與瓶餵，沒記到的不會憑空出現。
-          </Text>
+          <Text style={[styles.note, { color: t.textMuted }]}>{tr('stats.stashNote')}</Text>
         </View>
 
         {/* ---- 每日趨勢 ---- */}
@@ -157,7 +156,9 @@ export default function Stats() {
           >
             <View style={styles.cardHead}>
               <View style={[styles.dot, { backgroundColor: t.baby[b.colorKey].base }]} />
-              <Text style={[styles.cardTitle, { color: t.text }]}>{b.name} · 最近 {DAYS} 天</Text>
+              <Text style={[styles.cardTitle, { color: t.text }]}>
+                {tr('stats.recentDays', { name: b.name, days: DAYS })}
+              </Text>
             </View>
 
             {/* 欄名一定要寫「瓶餵」。totalMl 只加 amountMl，而親餵沒有 ml ——
@@ -165,7 +166,7 @@ export default function Stats() {
             <DayBars
               days={days}
               color={t.baby[b.colorKey].base}
-              label="每日瓶餵奶量 ml"
+              label={tr('stats.barBottleMl')}
               values={stats.map((s) => s.totalMl)}
               max={sharedMax.ml}
               now={now}
@@ -175,7 +176,7 @@ export default function Stats() {
             <DayBars
               days={days}
               color={t.baby[b.colorKey].base}
-              label="每日親餵時間"
+              label={tr('stats.barNursingTime')}
               values={stats.map((s) => s.nursingMin)}
               max={sharedMax.nursing}
               formatValue={formatMinutes}
@@ -184,7 +185,7 @@ export default function Stats() {
             <DayBars
               days={days}
               color={t.baby[b.colorKey].base}
-              label="每日睡眠"
+              label={tr('stats.barSleep')}
               values={stats.map((s) => s.sleepMin)}
               max={sharedMax.sleep}
               formatValue={formatMinutes}
@@ -193,7 +194,7 @@ export default function Stats() {
             <DayBars
               days={days}
               color={t.baby[b.colorKey].base}
-              label="每日尿布片數"
+              label={tr('stats.barDiapers')}
               values={stats.map((s) => s.diaperCount)}
               max={sharedMax.diaper}
               now={now}
@@ -202,20 +203,20 @@ export default function Stats() {
         ))}
 
         <Text style={[styles.note, { color: t.textMuted }]}>
-          兩寶同一項的長條圖用【同一個刻度】，所以上下並排可以直接比高低。
+          {tr('stats.sharedScaleNote')}
           {'\n'}
-          趨勢只算最近 {DAYS} 天，且來源是最近 1000 筆紀錄 —— 再往前的日子可能顯示為 0。
+          {tr('stats.windowNote', { days: DAYS })}
         </Text>
 
         {/* ---- 生長對照 ---- */}
         <View style={[styles.card, { backgroundColor: t.card, borderColor: t.cardBorder }]}>
-          <Text style={[styles.cardTitle, { color: t.text }]}>生長對照</Text>
+          <Text style={[styles.cardTitle, { color: t.text }]}>{tr('stats.growthTitle')}</Text>
 
           <View style={styles.chips}>
             {METRICS.map((m) => (
               <Chip
                 key={m.key}
-                label={m.label}
+                label={tr(m.label)}
                 selected={metric === m.key}
                 onPress={() => setMetric(m.key)}
               />
@@ -228,16 +229,13 @@ export default function Stats() {
             format={activeMetric.format}
           />
 
-          <Text style={[styles.note, { color: t.textMuted }]}>
-            兩寶疊在同一個座標系比較。WHO 百分位需要官方的 LMS 參考表，
-            那是醫療數據不能憑估計填，所以尚未加入。
-          </Text>
+          <Text style={[styles.note, { color: t.textMuted }]}>{tr('stats.whoNote')}</Text>
 
           <View style={styles.growthButtons}>
             {babies.map((b) => (
               <SlimButton
                 key={b.id}
-                label={`記錄 ${b.name}`}
+                label={tr('stats.logGrowth', { name: b.name })}
                 tint={t.baby[b.colorKey].base}
                 onPress={() => handleAddGrowth(b.id)}
               />
@@ -272,7 +270,9 @@ function DayBars({
   now: number;
 }) {
   const t = useTheme();
+  const tr = useT();
   const total = values.reduce((a, b) => a + b, 0);
+  const daysWithData = values.filter((v) => v > 0).length;
   // 分母是【整個視窗的天數】，不是有資料的天數。
   // 原本除以 nonZero.length 會系統性高估：14 天裡只記到 4 天共 2000 ml，
   // 會顯示「平均 500」而不是 143。這個數字是要拿給醫生看的，不能虛報。
@@ -288,8 +288,10 @@ function DayBars({
             除以有記錄的天數（自己心算：平均 × 14 ÷ 有記錄天數）
             不挑邊站，因為哪個才對取決於你那 14 天是不是真的每天都在記。 */}
         <Text style={[styles.barsAvg, { color: t.text }]}>
-          {DAYS} 天平均 {formatValue ? formatValue(avg) : avg}
-          <Text style={{ color: t.textMuted }}>　有記錄 {values.filter((v) => v > 0).length} 天</Text>
+          {tr('stats.avg', { days: DAYS, value: formatValue ? formatValue(avg) : avg })}
+          <Text style={{ color: t.textMuted }}>
+            {tr(plural(daysWithData, 'stats.daysWithData'), { n: daysWithData })}
+          </Text>
         </Text>
       </View>
 

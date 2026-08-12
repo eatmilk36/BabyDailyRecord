@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { TodayStats } from '../db/queries';
+import { plural } from '../lib/i18n';
 import { formatMinutes } from '../lib/labels';
 import { useT } from '../lib/useT';
 import { fontSize, spacing } from '../theme/colors';
@@ -30,14 +31,18 @@ export function TodaySummary({ stats, label, prefixStrong }: Props) {
   const prefix = label ?? tr('summary.today');
 
   const items: { value: string; label: string }[] = [
-    { value: String(stats.feedCount), label: tr('summary.feeds') },
+    // plural()：英文的「1 feed」vs「2 feeds」。中文兩個字典值一樣所以是 no-op
+    { value: String(stats.feedCount), label: tr(plural(stats.feedCount, 'summary.feeds')) },
     ...(stats.totalMl > 0 ? [{ value: String(stats.totalMl), label: tr('summary.ml') }] : []),
     ...(stats.nursingMin > 0
       ? [{ value: String(stats.nursingMin), label: tr('summary.nursingMin') }]
       : []),
-    { value: String(stats.diaperCount), label: tr('summary.diapers') },
+    {
+      value: String(stats.diaperCount),
+      label: tr(plural(stats.diaperCount, 'summary.diapers')),
+    },
     ...(stats.poopCount > 0
-      ? [{ value: String(stats.poopCount), label: tr('summary.poops') }]
+      ? [{ value: String(stats.poopCount), label: tr(plural(stats.poopCount, 'summary.poops')) }]
       : []),
     // 睡眠用「小時 分」而不是純分鐘 —— 380 分鐘要在腦裡換算，6 小時 20 分不用
     ...(stats.sleepMin > 0

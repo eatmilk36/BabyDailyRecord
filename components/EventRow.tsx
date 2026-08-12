@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Baby, BabyEvent } from '../db/schema';
 import { summarizeEvent, TYPE_EMOJI } from '../lib/labels';
 import { formatClock } from '../lib/time';
+import { useT } from '../lib/useT';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
 import { useTheme } from '../theme/useTheme';
@@ -20,6 +21,7 @@ type Props = {
  */
 export function EventRow({ event, baby, onPress, onLongPress }: Props) {
   const t = useTheme();
+  const tr = useT();
   const tone = baby ? t.baby[baby.colorKey] : undefined;
 
   return (
@@ -46,7 +48,7 @@ export function EventRow({ event, baby, onPress, onLongPress }: Props) {
       <View style={[styles.dot, { backgroundColor: tone?.base ?? t.textMuted }]} />
       <Text style={[styles.baby, { color: t.text }]} numberOfLines={1}>
         {/* 擠奶沒有寶寶，顯示「媽媽」比顯示「—」清楚 */}
-        {baby?.name ?? (event.type === 'pump' ? '媽媽' : '—')}
+        {baby?.name ?? tr(event.type === 'pump' ? 'history.mother' : 'history.noBaby')}
       </Text>
 
       <Text style={styles.emoji}>{TYPE_EMOJI[event.type]}</Text>
@@ -55,7 +57,7 @@ export function EventRow({ event, baby, onPress, onLongPress }: Props) {
           只有真的需要時才會佔到第二行，短的摘要不會多佔空間。 */}
       <Text style={[styles.summary, { color: t.text }]} numberOfLines={2}>
         {summarizeEvent(event)}
-        {event.status === 'active' ? ' · 進行中' : ''}
+        {event.status === 'active' ? ` · ${tr('history.inProgress')}` : ''}
       </Text>
     </Pressable>
   );

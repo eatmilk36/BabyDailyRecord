@@ -98,8 +98,8 @@ export function formatLength(mm: number): string {
 export function formatMinutes(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
-  if (h === 0) return `${m} 分`;
-  return m === 0 ? `${h} 小時` : `${h} 小時 ${m} 分`;
+  if (h === 0) return t('time.min', { n: m });
+  return m === 0 ? t('time.hour', { h }) : t('time.hourMin', { h, m });
 }
 
 /** 一行摘要：「配方 120ml」/「親餵 左 18 分」/「尿+便 · 大便卡 3 ⚠」/「睡 2 小時 15 分」 */
