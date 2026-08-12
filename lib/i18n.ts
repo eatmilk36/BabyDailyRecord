@@ -162,6 +162,88 @@ const zh = {
   'error.whatGrowth': '生長紀錄',
   'error.whatStash': '母乳庫存',
 
+  // ---- 紀錄類型與欄位值 ----
+  'type.feed': '喝奶',
+  'type.diaper': '尿布',
+  'type.sleep': '睡覺',
+  'type.pump': '擠奶',
+  'type.growth': '生長',
+  'method.bottle': '瓶餵',
+  'method.nursing': '親餵',
+  'milk.breast': '母奶',
+  'milk.formula': '配方',
+  'milk.mixed': '混合',
+  'diaperKind.pee': '尿',
+  'diaperKind.poop': '便',
+  'diaperKind.both': '尿+便',
+  'sex.boy': '男寶',
+  'sex.girl': '女寶',
+
+  // ---- 一行摘要 ----
+  'sum.sleeping': '正在睡',
+  'sum.slept': '睡 {dur}',
+  'sum.sleepNoDur': '睡覺',
+  'sum.pumped': '擠出 {ml}ml',
+  'sum.pumpNoAmount': '擠奶',
+  'sum.head': '頭圍 {v}',
+  'sum.growthEmpty': '生長紀錄',
+  'sum.feedPlain': '喝奶',
+  'sum.diaperPlain': '尿布',
+
+  // ---- 彈窗欄位 ----
+  'field.occurredAt': '發生時間',
+  'field.earlierBy': '早 {n} 分',
+  'field.method': '餵法',
+  'field.milk': '奶種',
+  'field.side': '哪一邊',
+  'field.nursingDuration': '親餵時長',
+  'field.amountDrunk': '實際喝掉的量',
+  'field.diaperKind': '類型',
+  'field.sleepDuration': '睡了多久',
+  'field.pumpAmount': '擠出的量',
+  'field.custom': '自訂',
+  'field.minutes': '分鐘',
+  'field.weight': '體重',
+  'field.height': '身長',
+  'field.head': '頭圍',
+  'note.deductsStash': '這筆會從母乳庫存扣掉。',
+  'note.addsStash': '這筆會加進母乳庫存。',
+  'note.stillSleeping': '還在睡。回首頁按「結束」才會算時長。',
+  'note.growthUnits': '內部用公克／公釐這種整數存，避免浮點數累積誤差。',
+
+  // ---- 單寶彈窗 ----
+  'modal.eventTitle': '紀錄細節',
+  'modal.sessionTitle': '兩寶紀錄',
+  'modal.pumpHeader': '擠奶',
+  'modal.savedAt': '✓ 已儲存 {time}',
+  'modal.allOptional': '全部欄位都可以不填，每次改動都已經存好了。',
+  'modal.notFoundOne': '找不到這筆紀錄',
+  'modal.notFoundSession': '找不到這組紀錄',
+  'modal.deleteOne': '刪除這筆紀錄',
+  'modal.deleteTwo': '刪除這兩筆紀錄',
+  'modal.deleteOneAsk': '刪除這筆紀錄？',
+  'modal.deleteTwoAsk': '刪除這兩筆紀錄？',
+  'modal.deleteWarn': '刪除後這一頁會出現「復原」，離開這一頁就不能復原了。',
+  'modal.deletedOne': '已刪除這筆紀錄',
+  'modal.deletedTwo': '已刪除這兩筆紀錄',
+  'modal.noUndoAfterLeave': '離開這一頁之後就沒有復原入口了。',
+  'modal.saveFailed': '存不進去',
+
+  // ---- 雙寶連動 ----
+  'link.bothSaved': '✓ 兩筆都已儲存',
+  'link.hintLine1': '改其中一位，另一位會自動跟著變（不分上下，兩邊都會）。',
+  'link.hintLine2': '改過的那一位就不再跟著變，卡片上會標出來，可以按一下改回去。',
+  'link.hintTimeAlways': '時間永遠兩邊同步',
+  'link.hintSep': '；',
+  'link.hintNeverMirror': '左右邊與大便卡編號永遠不連動',
+  'link.hintWhy': '—— 那是各自的觀察，不該被複製。',
+  'link.willFollow': '會跟著另一位變',
+  'link.wontFollow': '不跟著變 · 改回去',
+  'link.syncedTo': '↕ 已同步到 {names}',
+  'link.otherBaby': '另一位',
+  /** 名字之間的分隔符。中文用頓號、英文用逗號＋空白 —— 這是標點差異不是翻譯 */
+  'link.nameJoin': '、',
+
   // ---- 通用 ----
   'common.done': '完成',
   'common.cancel': '取消',
@@ -171,6 +253,16 @@ const zh = {
   'common.save': '儲存',
   'common.revert': '還原',
   'common.ok': '好',
+  /** 寶寶還沒取名時的稱呼。⚠️ 不要用「寶寶」當硬字串，雙胞胎兩個都叫寶寶等於沒標示 */
+  'common.babyFallback': '寶寶',
+
+  // ---- 啟動畫面 ----
+  // ⚠️ 這兩句在 SettingsProvider 掛上【之前】就會顯示，所以只能走模組層級的 t()，
+  //    而那時 currentLang 還是預設的 zh-TW（設定還沒從資料庫讀出來）。
+  //    英文使用者在這半秒會看到中文 —— 這是可接受的，因為替代方案是
+  //    「資料庫壞掉時什麼都不顯示」。
+  'splash.dbError': '資料庫錯誤：{msg}',
+  'splash.preparing': '準備中…',
 } as const;
 
 export type I18nKey = keyof typeof zh;
@@ -302,6 +394,87 @@ const en: Record<I18nKey, string> = {
   'error.whatGrowth': 'growth entries',
   'error.whatStash': 'milk stash',
 
+  'type.feed': 'Feed',
+  'type.diaper': 'Diaper',
+  'type.sleep': 'Sleep',
+  'type.pump': 'Pump',
+  'type.growth': 'Growth',
+  'method.bottle': 'Bottle',
+  'method.nursing': 'Nursing',
+  'milk.breast': 'Breast milk',
+  'milk.formula': 'Formula',
+  'milk.mixed': 'Mixed',
+  'diaperKind.pee': 'Wet',
+  'diaperKind.poop': 'Dirty',
+  'diaperKind.both': 'Wet + dirty',
+  'sex.boy': 'Boy',
+  'sex.girl': 'Girl',
+
+  'sum.sleeping': 'sleeping now',
+  'sum.slept': 'slept {dur}',
+  'sum.sleepNoDur': 'sleep',
+  'sum.pumped': 'pumped {ml}ml',
+  'sum.pumpNoAmount': 'pump',
+  'sum.head': 'head {v}',
+  'sum.growthEmpty': 'growth entry',
+  'sum.feedPlain': 'feed',
+  'sum.diaperPlain': 'diaper',
+
+  'field.occurredAt': 'Time',
+  'field.earlierBy': '{n} min earlier',
+  'field.method': 'How',
+  'field.milk': 'Milk',
+  'field.side': 'Side',
+  'field.nursingDuration': 'Nursing time',
+  'field.amountDrunk': 'Amount taken',
+  'field.diaperKind': 'Type',
+  'field.sleepDuration': 'Slept for',
+  'field.pumpAmount': 'Amount pumped',
+  'field.custom': 'Custom',
+  'field.minutes': 'min',
+  'field.weight': 'Weight',
+  'field.height': 'Length',
+  'field.head': 'Head',
+  'note.deductsStash': 'This will be deducted from the milk stash.',
+  'note.addsStash': 'This will be added to the milk stash.',
+  'note.stillSleeping': 'Still sleeping. Tap “End sleep” on Home to record the duration.',
+  'note.growthUnits':
+    'Stored internally as whole grams / millimetres to avoid floating-point drift.',
+
+  'modal.eventTitle': 'Entry',
+  'modal.sessionTitle': 'Both babies',
+  'modal.pumpHeader': 'Pump',
+  'modal.savedAt': '✓ Saved {time}',
+  'modal.allOptional': 'Every field is optional — each change is already saved.',
+  'modal.notFoundOne': 'Entry not found',
+  'modal.notFoundSession': 'Entries not found',
+  'modal.deleteOne': 'Delete this entry',
+  'modal.deleteTwo': 'Delete both entries',
+  'modal.deleteOneAsk': 'Delete this entry?',
+  'modal.deleteTwoAsk': 'Delete both entries?',
+  'modal.deleteWarn':
+    'An “Undo” button appears on this screen after deleting. Leave the screen and it is gone.',
+  'modal.deletedOne': 'Entry deleted',
+  'modal.deletedTwo': 'Both entries deleted',
+  'modal.noUndoAfterLeave': 'Once you leave this screen there is no way to undo.',
+  'modal.saveFailed': "Couldn't save",
+
+  'link.bothSaved': '✓ Both saved',
+  'link.hintLine1': 'Change one baby and the other follows — either direction, both ways.',
+  'link.hintLine2':
+    'The one you changed stops following; the card says so, and you can tap to re-link.',
+  'link.hintTimeAlways': 'Time always syncs both ways',
+  'link.hintSep': '; ',
+  'link.hintNeverMirror': 'side and stool-card number never sync',
+  // ⚠️ 開頭那個空格是刻意的。中文的「——」緊貼前字，英文的 em dash 前面要有空格，
+  //    少了它畫面上會是「never sync— those are…」。
+  'link.hintWhy': ' — those are per-baby observations and must not be copied.',
+  'link.willFollow': 'follows the other',
+  'link.wontFollow': "doesn't follow · re-link",
+  'link.syncedTo': '↕ synced to {names}',
+  'link.otherBaby': 'the other baby',
+  'link.nameJoin': ', ',
+
   'common.done': 'Done',
   'common.cancel': 'Cancel',
   'common.delete': 'Delete',
@@ -310,6 +483,10 @@ const en: Record<I18nKey, string> = {
   'common.save': 'Save',
   'common.revert': 'Discard',
   'common.ok': 'OK',
+  'common.babyFallback': 'Baby',
+
+  'splash.dbError': 'Database error: {msg}',
+  'splash.preparing': 'Getting ready…',
 };
 
 export const DICTS: Record<LangKey, Record<I18nKey, string>> = { 'zh-TW': zh, en };

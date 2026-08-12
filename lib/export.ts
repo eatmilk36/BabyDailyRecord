@@ -5,14 +5,14 @@ import { dumpAll } from '../db/queries';
 import type { Baby, BabyEvent } from '../db/schema';
 import {
   DIAPER_COLOR_LABEL,
-  DIAPER_KIND_LABEL,
+  diaperKindLabel,
   isStoolCardAbnormal,
-  METHOD_LABEL,
-  MILK_LABEL,
-  SEX_LABEL,
+  methodLabel,
+  milkLabel,
+  sexLabel,
   sideLabel,
   stoolCardLabel,
-  TYPE_LABEL,
+  typeLabel,
 } from './labels';
 
 /**
@@ -104,18 +104,18 @@ function toCsvRow(e: BabyEvent, babyById: Map<string, Baby>): string[] {
   const baby = babyById.get(e.babyId);
   return [
     baby?.name ?? e.babyId,
-    baby?.sex ? SEX_LABEL[baby.sex] : '',
+    baby?.sex ? sexLabel(baby.sex) : '',
     format(d, 'yyyy-MM-dd'),
     format(d, 'HH:mm'),
-    // 走 TYPE_LABEL，不要自己寫三元。原本是 `e.type === 'feed' ? '喝奶' : '尿布'`，
+    // 走 typeLabel()，不要自己寫三元。原本是 `e.type === 'feed' ? '喝奶' : '尿布'`，
     // 於是睡眠／擠奶／生長三種全部被標成「尿布」——而這張表是要拿給醫生看的。
-    TYPE_LABEL[e.type],
-    e.method ? METHOD_LABEL[e.method] : '',
-    e.milk ? MILK_LABEL[e.milk] : '',
+    typeLabel(e.type),
+    e.method ? methodLabel(e.method) : '',
+    e.milk ? milkLabel(e.milk) : '',
     e.amountMl != null ? String(e.amountMl) : '',
     e.durationMin != null ? String(e.durationMin) : '',
     e.side ? sideLabel(e.side) : '',
-    e.diaperKind ? DIAPER_KIND_LABEL[e.diaperKind] : '',
+    e.diaperKind ? diaperKindLabel(e.diaperKind) : '',
     e.stoolCard != null ? stoolCardLabel(e.stoolCard) : '',
     // 獨立一欄標出異常，醫生掃 CSV 時不用自己記 1–6 的規則
     isStoolCardAbnormal(e.stoolCard) ? '異常' : '',

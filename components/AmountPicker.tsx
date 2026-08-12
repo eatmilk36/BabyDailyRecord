@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useT } from '../lib/useT';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
 import { useTheme } from '../theme/useTheme';
@@ -23,6 +24,7 @@ type Props = {
  */
 export function AmountPicker({ label, value, presets, unit, tint, onChange }: Props) {
   const t = useTheme();
+  const tr = useT();
   const isPreset = value != null && presets.includes(value);
   /** 有值、但不是任何一個快選按鈕的數字 → 一定要把輸入框打開才看得到它 */
   const hasCustomValue = value != null && !isPreset;
@@ -65,7 +67,7 @@ export function AmountPicker({ label, value, presets, unit, tint, onChange }: Pr
           />
         ))}
         <Chip
-          label="自訂"
+          label={tr('field.custom')}
           tint={tint}
           selected={showCustom}
           onPress={() => {

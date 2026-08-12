@@ -10,7 +10,7 @@ import { sendTestNotification, TEST_NOTIFICATION_DELAY_SEC } from '../../lib/not
 import type { Baby } from '../../db/schema';
 import { exportCsv, exportJson } from '../../lib/export';
 import { importJson } from '../../lib/import';
-import { SEX_LABEL } from '../../lib/labels';
+import { sexLabel } from '../../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../../lib/time';
 import { LANGS } from '../../lib/i18n';
 import { useSettings, type ThemeMode } from '../../lib/settings';
@@ -411,7 +411,7 @@ function BabyEditor({ baby }: { baby: Baby }) {
         {(['boy', 'girl'] as const).map((s) => (
           <Chip
             key={s}
-            label={SEX_LABEL[s]}
+            label={sexLabel(s)}
             tint={tone.base}
             selected={baby.sex === s}
             onPress={() => void setSex(s)}

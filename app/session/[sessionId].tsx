@@ -23,6 +23,7 @@ import {
   type EventPatch,
 } from '../../db/queries';
 import type { BabyEvent } from '../../db/schema';
+import { useT } from '../../lib/useT';
 import { fontSize, radius, spacing } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
@@ -51,6 +52,7 @@ import { useTheme } from '../../theme/useTheme';
  */
 export default function SessionModal() {
   const t = useTheme();
+  const tr = useT();
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const { babies } = useBabies();
   const [items, setItems] = useState<BabyEvent[]>([]);
@@ -58,8 +60,9 @@ export default function SessionModal() {
   const [loading, setLoading] = useState(true);
   // 刪除後停在這一頁顯示「復原」，而不是直接跳走
   const [deleted, setDeleted] = useState(false);
-  // 連動發生時的短暫提示（連動可能發生在捲出畫面的那張卡上）
-  const [mirrorNote, setMirrorNote] = useState<string | null>(null);
+  // 連動發生時的短暫提示（連動可能發生在捲出畫面的那張卡上）。
+  // 只存【名字清單】，句子在 render 時才組 —— 存整句話會把當下的語言凍進 state。
+  const [mirrorNames, setMirrorNames] = useState<string | null>(null);
   const mirrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
@@ -103,7 +106,7 @@ export default function SessionModal() {
       const other: EventPatch = { ...timeSync };
       if (!nextTouched[e.id] && Object.keys(mirror).length > 0) {
         Object.assign(other, mirror);
-        mirroredTo.push(babies.find((b) => b.id === e.babyId)?.name ?? '另一位');
+        mirroredTo.push(babies.find((b) => b.id === e.babyId)?.name ?? tr('link.otherBaby'));
       }
       if (Object.keys(other).length > 0) updates.push({ id: e.id, patch: other });
     });
@@ -115,9 +118,9 @@ export default function SessionModal() {
      * 給一個會自己消失的提示，講清楚剛剛同步到誰。
      */
     if (mirroredTo.length > 0) {
-      setMirrorNote(`已同步到 ${mirroredTo.join('、')}`);
+      setMirrorNames(mirroredTo.join(tr('link.nameJoin')));
       if (mirrorTimer.current) clearTimeout(mirrorTimer.current);
-      mirrorTimer.current = setTimeout(() => setMirrorNote(null), MIRROR_NOTE_MS);
+      mirrorTimer.current = setTimeout(() => setMirrorNames(null), MIRROR_NOTE_MS);
     }
 
     setTouched(nextTouched);
@@ -152,10 +155,10 @@ export default function SessionModal() {
    * 就算跳過去也只救得回一筆。
    */
   function handleDeleteAll() {
-    Alert.alert('刪除這兩筆紀錄？', '刪除後這一頁會出現「復原」，離開這一頁就不能復原了。', [
-      { text: '取消', style: 'cancel' },
+    Alert.alert(tr('modal.deleteTwoAsk'), tr('modal.deleteWarn'), [
+      { text: tr('common.cancel'), style: 'cancel' },
       {
-        text: '刪除',
+        text: tr('common.delete'),
         style: 'destructive',
         onPress: async () => {
           for (const e of items) await softDeleteEvent(e.id);
@@ -181,7 +184,7 @@ export default function SessionModal() {
   if (items.length === 0) {
     return (
       <View style={[styles.center, { backgroundColor: t.bg }]}>
-        <Text style={{ color: t.textMuted }}>找不到這組紀錄</Text>
+        <Text style={{ color: t.textMuted }}>{tr('modal.notFoundSession')}</Text>
       </View>
     );
   }
@@ -190,13 +193,20 @@ export default function SessionModal() {
     return (
       <View style={[styles.center, { backgroundColor: t.bg }]}>
         <View style={styles.deletedBox}>
-          <Text style={[styles.deletedTitle, { color: t.text }]}>已刪除這兩筆紀錄</Text>
-          <Text style={[styles.hint, { color: t.textMuted }]}>
-            離開這一頁之後就沒有復原入口了。
-          </Text>
+          <Text style={[styles.deletedTitle, { color: t.text }]}>{tr('modal.deletedTwo')}</Text>
+          <Text style={[styles.hint, { color: t.textMuted }]}>{tr('modal.noUndoAfterLeave')}</Text>
           <View style={styles.deletedButtons}>
-            <SlimButton label="復原" tint={t.primary} filled onPress={handleRestoreAll} />
-            <SlimButton label="關閉" tint={t.textMuted} onPress={() => router.back()} />
+            <SlimButton
+              label={tr('common.restore')}
+              tint={t.primary}
+              filled
+              onPress={handleRestoreAll}
+            />
+            <SlimButton
+              label={tr('common.close')}
+              tint={t.textMuted}
+              onPress={() => router.back()}
+            />
           </View>
         </View>
       </View>
@@ -211,22 +221,27 @@ export default function SessionModal() {
     >
       <View style={styles.badgeRow}>
         <View style={[styles.savedBadge, { backgroundColor: `${t.diaper}26` }]}>
-          <Text style={[styles.savedText, { color: t.text }]}>✓ 兩筆都已儲存</Text>
+          <Text style={[styles.savedText, { color: t.text }]}>{tr('link.bothSaved')}</Text>
         </View>
-        {mirrorNote ? (
+        {mirrorNames ? (
           <View style={[styles.savedBadge, { backgroundColor: `${t.primary}26` }]}>
-            <Text style={[styles.savedText, { color: t.primary }]}>↕ {mirrorNote}</Text>
+            <Text style={[styles.savedText, { color: t.primary }]}>
+              {tr('link.syncedTo', { names: mirrorNames })}
+            </Text>
           </View>
         ) : null}
       </View>
       <Text style={[styles.hint, { color: t.textMuted }]}>
-        改其中一位，另一位會自動跟著變（不分上下，兩邊都會）。
+        {tr('link.hintLine1')}
         {'\n'}
-        改過的那一位就不再跟著變，卡片上會標出來，可以按一下改回去。
+        {tr('link.hintLine2')}
         {'\n'}
-        <Text style={{ fontWeight: '800' }}>時間永遠兩邊同步</Text>
-        ；<Text style={{ fontWeight: '800' }}>左右邊與大便卡編號永遠不連動</Text>
-        —— 那是各自的觀察，不該被複製。
+        {/* 這兩句是【對比】：一個永遠同步、一個永遠不同步，所以都要粗體。
+            中文原文用「；」串起來，英文用分號 —— 分隔符跟著字典走。 */}
+        <Text style={{ fontWeight: '800' }}>{tr('link.hintTimeAlways')}</Text>
+        {tr('link.hintSep')}
+        <Text style={{ fontWeight: '800' }}>{tr('link.hintNeverMirror')}</Text>
+        {tr('link.hintWhy')}
       </Text>
 
       {items.map((event, index) => {
@@ -250,7 +265,9 @@ export default function SessionModal() {
           >
             <View style={styles.header}>
               <View style={[styles.dot, { backgroundColor: tint }]} />
-              <Text style={[styles.title, { color: t.text }]}>{baby?.name ?? '寶寶'}</Text>
+              <Text style={[styles.title, { color: t.text }]}>
+                {baby?.name ?? tr('common.babyFallback')}
+              </Text>
               {/* 兩種狀態【都要】顯示。
                   原本只在 touched 時顯示「已獨立」，所以沒標記的那張卡上
                   看不出「我會被另一張蓋掉」—— 而那正是使用者需要知道的事。
@@ -258,10 +275,10 @@ export default function SessionModal() {
                   剛好相反，讀起來像貼錯了。 */}
               {touched[event.id] ? (
                 <Pressable onPress={() => relink(event.id)} hitSlop={10}>
-                  <Text style={[styles.badge, { color: t.primary }]}>不跟著變 · 改回去</Text>
+                  <Text style={[styles.badge, { color: t.primary }]}>{tr('link.wontFollow')}</Text>
                 </Pressable>
               ) : (
-                <Text style={[styles.badge, { color: t.textMuted }]}>會跟著另一位變</Text>
+                <Text style={[styles.badge, { color: t.textMuted }]}>{tr('link.willFollow')}</Text>
               )}
             </View>
 
@@ -272,10 +289,10 @@ export default function SessionModal() {
 
       {/* 同 event/[id]：主要動作是「完成」，刪除降級成小字 */}
       <View style={styles.footer}>
-        <SlimButton label="完成" onPress={() => router.back()} filled />
+        <SlimButton label={tr('common.done')} onPress={() => router.back()} filled />
       </View>
       <Pressable onPress={handleDeleteAll} style={styles.deleteLink} hitSlop={12}>
-        <Text style={[styles.deleteText, { color: t.warn }]}>刪除這兩筆紀錄</Text>
+        <Text style={[styles.deleteText, { color: t.warn }]}>{tr('modal.deleteTwo')}</Text>
       </Pressable>
     </ScrollView>
   );

@@ -17,7 +17,7 @@ import { SlimButton } from '../components/SlimButton';
 import { createBabies } from '../db/queries';
 import type { Baby } from '../db/schema';
 import { importJson } from '../lib/import';
-import { SEX_LABEL } from '../lib/labels';
+import { sexLabel } from '../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../lib/time';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { useTheme } from '../theme/useTheme';
@@ -210,7 +210,7 @@ function SexPicker({
         {(['boy', 'girl'] as const).map((s) => (
           <Chip
             key={s}
-            label={SEX_LABEL[s]}
+            label={sexLabel(s)}
             selected={value === s}
             onPress={() => onChange(value === s ? null : s)}
           />

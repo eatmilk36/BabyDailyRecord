@@ -20,8 +20,9 @@ import {
   type EventPatch,
 } from '../../db/queries';
 import type { BabyEvent } from '../../db/schema';
-import { TYPE_LABEL } from '../../lib/labels';
+import { typeLabel } from '../../lib/labels';
 import { formatClock } from '../../lib/time';
+import { useT } from '../../lib/useT';
 import { fontSize, radius, spacing } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
@@ -37,6 +38,7 @@ import { useTheme } from '../../theme/useTheme';
  */
 export default function EventModal() {
   const t = useTheme();
+  const tr = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { babies } = useBabies();
   const [event, setEvent] = useState<BabyEvent | null>(null);
@@ -83,10 +85,10 @@ export default function EventModal() {
    */
   function handleDelete() {
     if (!event) return;
-    Alert.alert('刪除這筆紀錄？', '刪除後這一頁會出現「復原」，離開這一頁就不能復原了。', [
-      { text: '取消', style: 'cancel' },
+    Alert.alert(tr('modal.deleteOneAsk'), tr('modal.deleteWarn'), [
+      { text: tr('common.cancel'), style: 'cancel' },
       {
-        text: '刪除',
+        text: tr('common.delete'),
         style: 'destructive',
         onPress: async () => {
           await softDeleteEvent(event.id);
@@ -113,7 +115,7 @@ export default function EventModal() {
   if (!event) {
     return (
       <View style={[styles.center, { backgroundColor: t.bg }]}>
-        <Text style={{ color: t.textMuted }}>找不到這筆紀錄</Text>
+        <Text style={{ color: t.textMuted }}>{tr('modal.notFoundOne')}</Text>
       </View>
     );
   }
@@ -122,13 +124,20 @@ export default function EventModal() {
     return (
       <View style={[styles.center, { backgroundColor: t.bg }]}>
         <View style={styles.deletedBox}>
-          <Text style={[styles.deletedTitle, { color: t.text }]}>已刪除這筆紀錄</Text>
-          <Text style={[styles.hint, { color: t.textMuted }]}>
-            離開這一頁之後就沒有復原入口了。
-          </Text>
+          <Text style={[styles.deletedTitle, { color: t.text }]}>{tr('modal.deletedOne')}</Text>
+          <Text style={[styles.hint, { color: t.textMuted }]}>{tr('modal.noUndoAfterLeave')}</Text>
           <View style={styles.deletedButtons}>
-            <SlimButton label="復原" tint={t.primary} filled onPress={handleRestore} />
-            <SlimButton label="關閉" tint={t.textMuted} onPress={() => router.back()} />
+            <SlimButton
+              label={tr('common.restore')}
+              tint={t.primary}
+              filled
+              onPress={handleRestore}
+            />
+            <SlimButton
+              label={tr('common.close')}
+              tint={t.textMuted}
+              onPress={() => router.back()}
+            />
           </View>
         </View>
       </View>
@@ -154,27 +163,27 @@ export default function EventModal() {
         <View style={[styles.dot, { backgroundColor: tint }]} />
         <Text style={[styles.title, { color: t.text }]}>
           {/* 擠奶不屬於任何寶寶，所以找不到 baby 時不要硬寫「寶寶」 */}
-          {event.type === 'pump' ? '擠奶' : `${baby?.name ?? '寶寶'} · ${TYPE_LABEL[event.type]}`}
+          {event.type === 'pump'
+            ? tr('modal.pumpHeader')
+            : `${baby?.name ?? tr('common.babyFallback')} · ${typeLabel(event.type)}`}
         </Text>
       </View>
       <View style={[styles.savedBadge, { backgroundColor: `${t.diaper}26` }]}>
         <Text style={[styles.savedText, { color: t.text }]}>
-          ✓ 已儲存 {formatClock(event.updatedAt)}
+          {tr('modal.savedAt', { time: formatClock(event.updatedAt) })}
         </Text>
       </View>
-      <Text style={[styles.hint, { color: t.textMuted }]}>
-        全部欄位都可以不填，每次改動都已經存好了。
-      </Text>
+      <Text style={[styles.hint, { color: t.textMuted }]}>{tr('modal.allOptional')}</Text>
 
       <EventFields event={event} tint={tint} onPatch={patch} />
 
       {/* 主要動作是「完成」而不是「儲存」——資料早就存好了，這顆只是讓你知道可以走了。
           刪除刻意降級成小字：它是破壞性動作，不該是畫面上最顯眼的按鈕。 */}
       <View style={styles.footer}>
-        <SlimButton label="完成" onPress={() => router.back()} filled />
+        <SlimButton label={tr('common.done')} onPress={() => router.back()} filled />
       </View>
       <Pressable onPress={handleDelete} style={styles.deleteLink} hitSlop={12}>
-        <Text style={[styles.deleteText, { color: t.warn }]}>刪除這筆紀錄</Text>
+        <Text style={[styles.deleteText, { color: t.warn }]}>{tr('modal.deleteOne')}</Text>
       </Pressable>
     </ScrollView>
   );

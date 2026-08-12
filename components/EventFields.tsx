@@ -3,11 +3,11 @@ import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { EventPatch } from '../db/queries';
 import type { BabyEvent } from '../db/schema';
 import {
-  DIAPER_KIND_LABEL,
+  diaperKindLabel,
   DURATION_PRESETS,
   isStoolCardAbnormal,
-  METHOD_LABEL,
-  MILK_LABEL,
+  methodLabel,
+  milkLabel,
   ML_PRESETS,
   PUMP_PRESETS,
   sideLabel,
@@ -19,6 +19,7 @@ import {
   stoolCardLabel,
 } from '../lib/labels';
 import { formatClock } from '../lib/time';
+import { useT } from '../lib/useT';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
 import { useTheme } from '../theme/useTheme';
@@ -56,13 +57,14 @@ export function EventFields({ event, tint, onPatch }: Props) {
 function FeedFields({ event, tint, onPatch }: Props) {
   // hook 必須無條件呼叫，不能寫在下面的條件渲染裡
   const t = useTheme();
+  const tr = useT();
   return (
     <>
-      <Section label="餵法">
+      <Section label={tr('field.method')}>
         {(['bottle', 'nursing'] as const).map((m) => (
           <Chip
             key={m}
-            label={METHOD_LABEL[m]}
+            label={methodLabel(m)}
             tint={tint}
             selected={event.method === m}
             onPress={() => onPatch({ method: event.method === m ? null : m })}
@@ -70,11 +72,11 @@ function FeedFields({ event, tint, onPatch }: Props) {
         ))}
       </Section>
 
-      <Section label="奶種">
+      <Section label={tr('field.milk')}>
         {(['breast', 'formula', 'mixed'] as const).map((m) => (
           <Chip
             key={m}
-            label={MILK_LABEL[m]}
+            label={milkLabel(m)}
             tint={tint}
             selected={event.milk === m}
             onPress={() => onPatch({ milk: event.milk === m ? null : m })}
@@ -84,7 +86,7 @@ function FeedFields({ event, tint, onPatch }: Props) {
 
       {event.method === 'nursing' ? (
         <>
-          <Section label="哪一邊">
+          <Section label={tr('field.side')}>
             {(['left', 'right', 'both'] as const).map((s) => (
               <Chip
                 key={s}
@@ -96,17 +98,17 @@ function FeedFields({ event, tint, onPatch }: Props) {
             ))}
           </Section>
           <AmountPicker
-            label="親餵時長"
+            label={tr('field.nursingDuration')}
             value={event.durationMin}
             presets={DURATION_PRESETS}
-            unit="分鐘"
+            unit={tr('field.minutes')}
             tint={tint}
             onChange={(v) => onPatch({ durationMin: v ?? null })}
           />
         </>
       ) : (
         <AmountPicker
-          label="實際喝掉的量"
+          label={tr('field.amountDrunk')}
           value={event.amountMl}
           presets={ML_PRESETS}
           unit="ml"
@@ -117,7 +119,7 @@ function FeedFields({ event, tint, onPatch }: Props) {
 
       {/* 瓶餵母奶會從母乳庫存扣掉，這裡明講，免得你看到庫存變少覺得奇怪 */}
       {event.method === 'bottle' && event.milk === 'breast' ? (
-        <Text style={[styles.note, { color: t.textMuted }]}>這筆會從母乳庫存扣掉。</Text>
+        <Text style={[styles.note, { color: t.textMuted }]}>{tr('note.deductsStash')}</Text>
       ) : null}
     </>
   );
@@ -127,15 +129,16 @@ function FeedFields({ event, tint, onPatch }: Props) {
 
 function DiaperFields({ event, tint, onPatch }: Props) {
   const t = useTheme();
+  const tr = useT();
   const showStool = event.diaperKind === 'poop' || event.diaperKind === 'both';
 
   return (
     <>
-      <Section label="類型">
+      <Section label={tr('field.diaperKind')}>
         {(['pee', 'poop', 'both'] as const).map((k) => (
           <Chip
             key={k}
-            label={DIAPER_KIND_LABEL[k]}
+            label={diaperKindLabel(k)}
             tint={tint}
             selected={event.diaperKind === k}
             onPress={() =>
@@ -221,16 +224,17 @@ function DiaperFields({ event, tint, onPatch }: Props) {
 
 function SleepFields({ event, tint, onPatch }: Props) {
   const t = useTheme();
+  const tr = useT();
   return (
     <>
       {event.status === 'active' ? (
-        <Text style={[styles.note, { color: t.textMuted }]}>還在睡。回首頁按「結束」才會算時長。</Text>
+        <Text style={[styles.note, { color: t.textMuted }]}>{tr('note.stillSleeping')}</Text>
       ) : (
         <AmountPicker
-          label="睡了多久"
+          label={tr('field.sleepDuration')}
           value={event.durationMin}
           presets={SLEEP_PRESETS}
-          unit="分鐘"
+          unit={tr('field.minutes')}
           tint={tint}
           onChange={(v) => onPatch({ durationMin: v ?? null })}
         />
@@ -243,17 +247,18 @@ function SleepFields({ event, tint, onPatch }: Props) {
 
 function PumpFields({ event, tint, onPatch }: Props) {
   const t = useTheme();
+  const tr = useT();
   return (
     <>
       <AmountPicker
-        label="擠出的量"
+        label={tr('field.pumpAmount')}
         value={event.amountMl}
         presets={PUMP_PRESETS}
         unit="ml"
         tint={tint}
         onChange={(v) => onPatch({ amountMl: v ?? null })}
       />
-      <Text style={[styles.note, { color: t.textMuted }]}>這筆會加進母乳庫存。</Text>
+      <Text style={[styles.note, { color: t.textMuted }]}>{tr('note.addsStash')}</Text>
     </>
   );
 }
@@ -262,11 +267,12 @@ function PumpFields({ event, tint, onPatch }: Props) {
 
 function GrowthFields({ event, onPatch }: { event: BabyEvent; onPatch: (p: EventPatch) => void }) {
   const t = useTheme();
+  const tr = useT();
   return (
     <>
       {/* 三個都可選填 —— 回診常常只量體重 */}
       <MeasureInput
-        label="體重"
+        label={tr('field.weight')}
         unit="kg"
         decimals={2}
         /** 存公克，顯示公斤 */
@@ -275,7 +281,7 @@ function GrowthFields({ event, onPatch }: { event: BabyEvent; onPatch: (p: Event
         onChange={(v) => onPatch({ weightG: v })}
       />
       <MeasureInput
-        label="身長"
+        label={tr('field.height')}
         unit="cm"
         decimals={1}
         /** 存公釐，顯示公分 */
@@ -284,16 +290,14 @@ function GrowthFields({ event, onPatch }: { event: BabyEvent; onPatch: (p: Event
         onChange={(v) => onPatch({ heightMm: v })}
       />
       <MeasureInput
-        label="頭圍"
+        label={tr('field.head')}
         unit="cm"
         decimals={1}
         factor={10}
         base={event.headMm}
         onChange={(v) => onPatch({ headMm: v })}
       />
-      <Text style={[styles.note, { color: t.textMuted }]}>
-        內部用公克／公釐這種整數存，避免浮點數累積誤差。
-      </Text>
+      <Text style={[styles.note, { color: t.textMuted }]}>{tr('note.growthUnits')}</Text>
     </>
   );
 }
@@ -360,17 +364,18 @@ function TimeRow({
   onPatch: (p: EventPatch) => void;
 }) {
   const t = useTheme();
+  const tr = useT();
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionLabel, { color: t.textMuted }]}>發生時間</Text>
+      <Text style={[styles.sectionLabel, { color: t.textMuted }]}>{tr('field.occurredAt')}</Text>
       <View style={styles.timeRow}>
         <Text style={[styles.clock, { color: t.text }]}>{formatClock(event.occurredAt)}</Text>
         <View style={styles.chips}>
           {[5, 15, 30].map((min) => (
             <Chip
               key={min}
-              label={`早 ${min} 分`}
+              label={tr('field.earlierBy', { n: min })}
               tint={tint}
               onPress={() => onPatch({ occurredAt: event.occurredAt - min * 60_000 })}
             />

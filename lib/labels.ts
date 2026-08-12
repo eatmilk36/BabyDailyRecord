@@ -3,13 +3,14 @@ import { t } from './i18n';
 
 /** 中文標籤對照。UI 一律用這裡的字，不要在元件裡散落硬字串。 */
 
-export const TYPE_LABEL = {
-  feed: '喝奶',
-  diaper: '尿布',
-  sleep: '睡覺',
-  pump: '擠奶',
-  growth: '生長',
-} as const;
+/**
+ * ⚠️ 這些原本都是 `as const` 的常數物件，改成函式因為它們要跟著語言變。
+ * 這個檔案不是元件，所以用 lib/i18n.ts 的模組層級 t()（讀 currentLang）。
+ * 呼叫端從 TYPE_LABEL[x] 改成 typeLabel(x)。
+ */
+export function typeLabel(type: BabyEvent['type']): string {
+  return t(`type.${type}`);
+}
 
 export const TYPE_EMOJI = {
   feed: '🍼',
@@ -19,8 +20,12 @@ export const TYPE_EMOJI = {
   growth: '📏',
 } as const;
 
-export const METHOD_LABEL = { bottle: '瓶餵', nursing: '親餵' } as const;
-export const MILK_LABEL = { breast: '母奶', formula: '配方', mixed: '混合' } as const;
+export function methodLabel(m: NonNullable<BabyEvent['method']>): string {
+  return t(`method.${m}`);
+}
+export function milkLabel(m: NonNullable<BabyEvent['milk']>): string {
+  return t(`milk.${m}`);
+}
 /**
  * 左右邊。
  *
@@ -33,7 +38,9 @@ export const MILK_LABEL = { breast: '母奶', formula: '配方', mixed: '混合'
 export function sideLabel(side: NursingSide): string {
   return t(side === 'left' ? 'side.left' : side === 'right' ? 'side.right' : 'side.both');
 }
-export const DIAPER_KIND_LABEL = { pee: '尿', poop: '便', both: '尿+便' } as const;
+export function diaperKindLabel(k: NonNullable<BabyEvent['diaperKind']>): string {
+  return t(`diaperKind.${k}`);
+}
 export const DIAPER_COLOR_LABEL = {
   yellow: '黃',
   green: '綠',
@@ -82,7 +89,9 @@ export const DIAPER_COLOR_SWATCH = {
   white: '#EFEAE2',
 } as const;
 
-export const SEX_LABEL = { boy: '男寶', girl: '女寶' } as const;
+export function sexLabel(s: NonNullable<import('../db/schema').Baby['sex']>): string {
+  return t(`sex.${s}`);
+}
 
 /** 公克 → 「3.25 kg」 */
 export function formatWeight(g: number): string {
@@ -105,20 +114,22 @@ export function formatMinutes(min: number): string {
 /** 一行摘要：「配方 120ml」/「親餵 左 18 分」/「尿+便 · 大便卡 3 ⚠」/「睡 2 小時 15 分」 */
 export function summarizeEvent(e: BabyEvent): string {
   if (e.type === 'sleep') {
-    if (e.status === 'active') return '正在睡';
-    return e.durationMin != null ? `睡 ${formatMinutes(e.durationMin)}` : '睡覺';
+    if (e.status === 'active') return t('sum.sleeping');
+    return e.durationMin != null
+      ? t('sum.slept', { dur: formatMinutes(e.durationMin) })
+      : t('sum.sleepNoDur');
   }
 
   if (e.type === 'pump') {
-    return e.amountMl != null ? `擠出 ${e.amountMl}ml` : '擠奶';
+    return e.amountMl != null ? t('sum.pumped', { ml: e.amountMl }) : t('sum.pumpNoAmount');
   }
 
   if (e.type === 'growth') {
     const parts: string[] = [];
     if (e.weightG != null) parts.push(formatWeight(e.weightG));
     if (e.heightMm != null) parts.push(formatLength(e.heightMm));
-    if (e.headMm != null) parts.push(`頭圍 ${formatLength(e.headMm)}`);
-    return parts.length ? parts.join(' · ') : '生長紀錄';
+    if (e.headMm != null) parts.push(t('sum.head', { v: formatLength(e.headMm) }));
+    return parts.length ? parts.join(' · ') : t('sum.growthEmpty');
   }
 
   if (e.type === 'feed') {
@@ -127,17 +138,17 @@ export function summarizeEvent(e: BabyEvent): string {
     // 原本是 `if (milk) ... else if (method) ...`，所以只要填了奶種，
     // 餵法就被吃掉 —— 一筆親餵母奶會顯示成「母奶 18 分」，
     // 完全看不出是親餵；而瓶餵母奶也是從「母奶」開頭，兩者無從分辨。
-    if (e.method) parts.push(METHOD_LABEL[e.method]);
-    if (e.milk) parts.push(MILK_LABEL[e.milk]);
+    if (e.method) parts.push(methodLabel(e.method));
+    if (e.milk) parts.push(milkLabel(e.milk));
 
     if (e.method === 'nursing' && e.side) parts.push(sideLabel(e.side));
     if (e.amountMl) parts.push(`${e.amountMl}ml`);
-    if (e.durationMin) parts.push(`${e.durationMin} 分`);
+    if (e.durationMin) parts.push(t('time.min', { n: e.durationMin }));
 
-    return parts.length ? parts.join(' ') : '喝奶';
+    return parts.length ? parts.join(' ') : t('sum.feedPlain');
   }
 
-  const parts: string[] = [e.diaperKind ? DIAPER_KIND_LABEL[e.diaperKind] : '尿布'];
+  const parts: string[] = [e.diaperKind ? diaperKindLabel(e.diaperKind) : t('sum.diaperPlain')];
   if (e.stoolCard != null) {
     parts.push(`大便卡 ${stoolCardLabel(e.stoolCard)}`);
   } else if (e.diaperColor) {

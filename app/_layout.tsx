@@ -8,7 +8,9 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { db } from '../db/client';
 import migrations from '../drizzle/migrations';
+import { t as tr0 } from '../lib/i18n';
 import { SettingsProvider } from '../lib/settings';
+import { useT } from '../lib/useT';
 import { fontSize, spacing } from '../theme/colors';
 import { useTheme } from '../theme/useTheme';
 
@@ -25,8 +27,16 @@ export default function RootLayout() {
   const { success, error } = useMigrations(db, migrations);
   const [fontsLoaded] = useFonts({ Nunito_700Bold, Nunito_800ExtraBold });
 
-  if (error) return <Splash message={`資料庫錯誤：${error.message}`} isError />;
-  if (!success || !fontsLoaded) return <Splash message="準備中…" />;
+  /**
+   * ⚠️ 這兩行用模組層級的 tr0() 而【不是】useT()。
+   *
+   * 它們在 SettingsProvider 掛上之前就要顯示，那時還沒有 context 可讀 ——
+   * 而 tr0() 讀的 currentLang 也還是預設的 zh-TW（語系設定存在資料庫裡，
+   * 正是這裡可能壞掉的那個資料庫）。所以英文使用者在這一瞬間會看到中文。
+   * 這是刻意的取捨：替代方案是「資料庫壞掉時整個畫面空白」。
+   */
+  if (error) return <Splash message={tr0('splash.dbError', { msg: error.message })} isError />;
+  if (!success || !fontsLoaded) return <Splash message={tr0('splash.preparing')} />;
 
   return (
     <SettingsProvider>
@@ -41,6 +51,7 @@ export default function RootLayout() {
  */
 function ThemedShell() {
   const t = useTheme();
+  const tr = useT();
 
   return (
     <SafeAreaProvider>
@@ -71,11 +82,11 @@ function ThemedShell() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen
           name="event/[id]"
-          options={{ presentation: 'modal', headerShown: true, title: '紀錄細節' }}
+          options={{ presentation: 'modal', headerShown: true, title: tr('modal.eventTitle') }}
         />
         <Stack.Screen
           name="session/[sessionId]"
-          options={{ presentation: 'modal', headerShown: true, title: '兩寶紀錄' }}
+          options={{ presentation: 'modal', headerShown: true, title: tr('modal.sessionTitle') }}
         />
       </Stack>
     </SafeAreaProvider>
