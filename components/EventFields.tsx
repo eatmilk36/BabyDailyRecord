@@ -10,7 +10,7 @@ import {
   MILK_LABEL,
   ML_PRESETS,
   PUMP_PRESETS,
-  SIDE_LABEL,
+  sideLabel,
   SLEEP_PRESETS,
   STOOL_CARD_ABNORMAL,
   STOOL_CARD_ALERT,
@@ -88,7 +88,7 @@ function FeedFields({ event, tint, onPatch }: Props) {
             {(['left', 'right', 'both'] as const).map((s) => (
               <Chip
                 key={s}
-                label={SIDE_LABEL[s]}
+                label={sideLabel(s)}
                 tint={tint}
                 selected={event.side === s}
                 onPress={() => onPatch({ side: event.side === s ? null : s })}

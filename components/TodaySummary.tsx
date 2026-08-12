@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { TodayStats } from '../db/queries';
 import { formatMinutes } from '../lib/labels';
+import { useT } from '../lib/useT';
 import { fontSize, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
 import { useTheme } from '../theme/useTheme';
@@ -22,17 +23,26 @@ type Props = {
  * 某寶某一天的摘要。
  * 雙胞胎一定要分開看——體重與攝入量的差異是回診重點。
  */
-export function TodaySummary({ stats, label = '今天', prefixStrong }: Props) {
+export function TodaySummary({ stats, label, prefixStrong }: Props) {
   const t = useTheme();
+  const tr = useT();
+  // 預設「今天」要走翻譯，所以不能寫在參數預設值裡（那時還拿不到 tr）
+  const prefix = label ?? tr('summary.today');
 
   const items: { value: string; label: string }[] = [
-    { value: String(stats.feedCount), label: '次奶' },
-    ...(stats.totalMl > 0 ? [{ value: String(stats.totalMl), label: 'ml' }] : []),
-    ...(stats.nursingMin > 0 ? [{ value: String(stats.nursingMin), label: '分親餵' }] : []),
-    { value: String(stats.diaperCount), label: '片尿布' },
-    ...(stats.poopCount > 0 ? [{ value: String(stats.poopCount), label: '次便' }] : []),
+    { value: String(stats.feedCount), label: tr('summary.feeds') },
+    ...(stats.totalMl > 0 ? [{ value: String(stats.totalMl), label: tr('summary.ml') }] : []),
+    ...(stats.nursingMin > 0
+      ? [{ value: String(stats.nursingMin), label: tr('summary.nursingMin') }]
+      : []),
+    { value: String(stats.diaperCount), label: tr('summary.diapers') },
+    ...(stats.poopCount > 0
+      ? [{ value: String(stats.poopCount), label: tr('summary.poops') }]
+      : []),
     // 睡眠用「小時 分」而不是純分鐘 —— 380 分鐘要在腦裡換算，6 小時 20 分不用
-    ...(stats.sleepMin > 0 ? [{ value: formatMinutes(stats.sleepMin), label: '睡' }] : []),
+    ...(stats.sleepMin > 0
+      ? [{ value: formatMinutes(stats.sleepMin), label: tr('summary.sleep') }]
+      : []),
   ];
 
   return (
@@ -43,7 +53,7 @@ export function TodaySummary({ stats, label = '今天', prefixStrong }: Props) {
           { color: prefixStrong ? t.text : t.textMuted },
         ]}
       >
-        {label}
+        {prefix}
       </Text>
       {items.map((it, i) => (
         <View key={`${it.label}-${i}`} style={styles.item}>

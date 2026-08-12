@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getAllSettings, setSetting } from '../db/queries';
 import type { SkinKey } from '../theme/colors';
+import { setCurrentLang, type LangKey } from './i18n';
 
 export type ThemeMode = 'auto' | 'light' | 'dark';
-export type LangKey = 'zh-TW' | 'en';
+export type { LangKey };
 
 export type AppSettings = {
   skin: SkinKey;
@@ -65,6 +66,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           else if (r.key === 'themeMode' && isThemeMode(r.value)) next.themeMode = r.value;
           else if (r.key === 'lang' && isLang(r.value)) next.lang = r.value;
         }
+        // ⚠️ 一定要在 setSettings 之前【同步】設好 currentLang。
+        // 見下面 set() 的註解 —— 放在 effect 裡會慢一個 render。
+        setCurrentLang(next.lang);
         setSettings(next);
         setLoaded(true);
       })
@@ -79,6 +83,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const set = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    /**
+     * ⚠️ 語言要【同步】寫進 i18n 的模組變數，不能只靠下面那個 effect。
+     *
+     * 實機驗證抓到的 bug：切成 English 之後 tab、按鈕、摘要都變了，
+     * 但問候語還是「早安」。因為 greeting() 是非元件函式，讀的是模組層級的
+     * currentLang，而 effect 在 render【之後】才跑 ——
+     * 所以 setSettings 觸發的那一次 render，greeting() 拿到的還是舊語言，
+     * 要等下一次重繪才會對。
+     *
+     * 同步設定就沒有這個順序問題。effect 留著當保險（處理初次載入以外的路徑）。
+     */
+    if (key === 'lang') setCurrentLang(value as LangKey);
     // 先更新畫面再寫入：切換皮膚要立刻看到，不要等資料庫
     setSettings((prev) => ({ ...prev, [key]: value }));
     void setSetting(key, String(value)).catch(() => {
@@ -86,6 +102,20 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       // 為了一個偏好設定打斷使用者不值得。
     });
   }, []);
+
+  /**
+   * 把語言同步到 i18n 的模組層級變數。
+   *
+   * 為什麼需要這個：t() 有兩種入口。元件用 useT()（訂閱這個 context 所以會重繪），
+   * 但 lib/labels.ts 的 summarizeEvent、lib/export.ts 的 CSV 表頭這些【不是元件】，
+   * 沒辦法用 hook。它們讀 i18n 的 currentLang，而那個值要有人餵。
+   *
+   * 放在 effect 而不是 set() 裡：初次從資料庫讀回來的語言也要同步，
+   * 不能只處理「使用者切換」那條路。
+   */
+  useEffect(() => {
+    setCurrentLang(settings.lang);
+  }, [settings.lang]);
 
   const value = useMemo(() => ({ settings, loaded, set }), [settings, loaded, set]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

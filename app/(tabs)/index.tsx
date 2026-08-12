@@ -29,6 +29,7 @@ import {
 import type { BabyEvent } from '../../db/schema';
 import { cancelTimerNotification, scheduleNursingOverdue } from '../../lib/notifications';
 import { formatBabyAge, greeting } from '../../lib/time';
+import { useT } from '../../lib/useT';
 import { useActionLock } from '../../lib/useActionLock';
 import { useNow } from '../../lib/useNow';
 import { fontSize, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
@@ -48,6 +49,7 @@ import { useTheme } from '../../theme/useTheme';
  */
 export default function Home() {
   const t = useTheme();
+  const tr = useT();
   const now = useNow(30_000);
   const { babies, loaded: babiesLoaded, error: babiesError } = useBabies();
   const { events, error: eventsError } = useRecentEvents();
@@ -85,7 +87,7 @@ export default function Home() {
     return (
       <SafeAreaView style={[styles.safe, styles.center, { backgroundColor: t.bg }]}>
         <ActivityIndicator color={t.primary} />
-        <Text style={[styles.loadingText, { color: t.textMuted }]}>讀取寶寶資料…</Text>
+        <Text style={[styles.loadingText, { color: t.textMuted }]}>{tr('home.loadingBabies')}</Text>
       </SafeAreaView>
     );
   }
@@ -254,12 +256,20 @@ export default function Home() {
 
         {babies.length >= 2 ? (
           <View style={styles.bothWrap}>
-            <Text style={[styles.bothLabel, { color: t.textMuted }]}>兩個一起</Text>
+            <Text style={[styles.bothLabel, { color: t.textMuted }]}>{tr('home.bothTitle')}</Text>
             <View style={styles.bothRow}>
-              <SlimButton label="都餵了" tint={t.feed} onPress={() => handleBoth('feed')} />
-              <SlimButton label="都換了" tint={t.diaper} onPress={() => handleBoth('diaper')} />
               <SlimButton
-                label={tandemSessionId ? '結束同時哺餵' : '同時親餵'}
+                label={tr('home.bothFeed')}
+                tint={t.feed}
+                onPress={() => handleBoth('feed')}
+              />
+              <SlimButton
+                label={tr('home.bothDiaper')}
+                tint={t.diaper}
+                onPress={() => handleBoth('diaper')}
+              />
+              <SlimButton
+                label={tandemSessionId ? tr('home.tandemStop') : tr('home.tandemStart')}
                 tint={t.primary}
                 filled={!!tandemSessionId}
                 onPress={handleTandemNursing}
@@ -272,10 +282,10 @@ export default function Home() {
             庫存是純推導：Σ擠出 − Σ（瓶餵母奶），不存欄位就不會有對不上的問題。 */}
         <View style={styles.bothWrap}>
           <Text style={[styles.bothLabel, { color: t.textMuted }]}>
-            擠奶　母乳庫存 {stash} ml
+            {tr('home.pumpTitle', { ml: stash })}
           </Text>
           <View style={styles.bothRow}>
-            <SlimButton label="🫗 記一次擠奶" tint={t.primary} onPress={handlePump} />
+            <SlimButton label={tr('home.pumpButton')} tint={t.primary} onPress={handlePump} />
           </View>
         </View>
       </ScrollView>

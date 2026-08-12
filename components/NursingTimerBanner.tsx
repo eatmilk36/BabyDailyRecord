@@ -1,7 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { BabyEvent } from '../db/schema';
 import { NURSING_OVERDUE_MIN } from '../db/queries';
-import { SIDE_LABEL } from '../lib/labels';
+import type { I18nKey } from '../lib/i18n';
+import { sideLabel } from '../lib/labels';
+import { useT } from '../lib/useT';
 import { formatClock, formatElapsed } from '../lib/time';
 import { useNow } from '../lib/useNow';
 import { fontSize, radius, spacing } from '../theme/colors';
@@ -30,21 +32,27 @@ type Props = {
  */
 const KIND: Record<
   TimerKind,
-  { icon: string; title: string; overdueTitle: string; stopLabel: string; overdueMin: number | null }
+  {
+    icon: string;
+    title: I18nKey;
+    overdueTitle: I18nKey;
+    stopLabel: I18nKey;
+    overdueMin: number | null;
+  }
 > = {
   nursing: {
     icon: '🍼',
-    title: '正在餵',
-    overdueTitle: '還在餵嗎？',
-    stopLabel: '結束親餵',
+    title: 'timer.nursing',
+    overdueTitle: 'timer.nursingOverdue',
+    stopLabel: 'timer.stopNursing',
     overdueMin: NURSING_OVERDUE_MIN,
   },
   sleep: {
     icon: '🌙',
-    title: '正在睡',
+    title: 'timer.sleep',
     // 睡眠不做超時警示：寶寶睡 3 小時是好事，不該被標紅
-    overdueTitle: '正在睡',
-    stopLabel: '結束睡眠',
+    overdueTitle: 'timer.sleep',
+    stopLabel: 'timer.stopSleep',
     overdueMin: null,
   },
 };
@@ -61,6 +69,7 @@ const KIND: Record<
  */
 export function NursingTimerBanner({ event, tint, onStop, kind }: Props) {
   const t = useTheme();
+  const tr = useT();
   const now = useNow(1000);
   const spec = KIND[kind];
   const elapsedMin = Math.floor((now - event.occurredAt) / 60000);
@@ -78,20 +87,25 @@ export function NursingTimerBanner({ event, tint, onStop, kind }: Props) {
     >
       <View style={styles.left}>
         <Text style={[styles.title, { color: overdue ? t.warn : t.text }]}>
-          {spec.icon} {overdue ? spec.overdueTitle : spec.title}
-          {event.side ? ` · ${SIDE_LABEL[event.side]}` : ''}
+          {spec.icon} {tr(overdue ? spec.overdueTitle : spec.title)}
+          {event.side ? ` · ${sideLabel(event.side)}` : ''}
         </Text>
         <Text style={[styles.elapsed, { color: overdue ? t.warn : t.text }]}>
           {formatElapsed(event.occurredAt, now)}
         </Text>
         <Text style={[styles.meta, { color: t.textMuted }]}>
-          {formatClock(event.occurredAt)} 開始
+          {tr('timer.startedAt', { time: formatClock(event.occurredAt) })}
         </Text>
       </View>
       <View style={styles.right}>
         {/* 按鈕自己說它要結束什麼。原本兩種計時的按鈕都只寫「結束」，
             兩個橫幅同時出現時無從分辨 —— 這是這個元件最重要的一處改動。 */}
-        <SlimButton label={spec.stopLabel} onPress={onStop} tint={overdue ? t.warn : tint} filled />
+        <SlimButton
+          label={tr(spec.stopLabel)}
+          onPress={onStop}
+          tint={overdue ? t.warn : tint}
+          filled
+        />
       </View>
     </View>
   );

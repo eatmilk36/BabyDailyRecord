@@ -1,4 +1,5 @@
-import type { BabyEvent } from '../db/schema';
+import type { BabyEvent, NursingSide } from '../db/schema';
+import { t } from './i18n';
 
 /** 中文標籤對照。UI 一律用這裡的字，不要在元件裡散落硬字串。 */
 
@@ -20,7 +21,18 @@ export const TYPE_EMOJI = {
 
 export const METHOD_LABEL = { bottle: '瓶餵', nursing: '親餵' } as const;
 export const MILK_LABEL = { breast: '母奶', formula: '配方', mixed: '混合' } as const;
-export const SIDE_LABEL = { left: '左', right: '右', both: '兩側' } as const;
+/**
+ * 左右邊。
+ *
+ * ⚠️ 從常數物件改成函式，因為它要跟著語言變。
+ * 這個檔案不是元件，所以用 lib/i18n.ts 的模組層級 t()（讀 currentLang）——
+ * 元件請用 useT()，否則語言切換時不會重繪。
+ *
+ * 呼叫端從 SIDE_LABEL[s] 改成 sideLabel(s)。
+ */
+export function sideLabel(side: NursingSide): string {
+  return t(side === 'left' ? 'side.left' : side === 'right' ? 'side.right' : 'side.both');
+}
 export const DIAPER_KIND_LABEL = { pee: '尿', poop: '便', both: '尿+便' } as const;
 export const DIAPER_COLOR_LABEL = {
   yellow: '黃',
@@ -118,7 +130,7 @@ export function summarizeEvent(e: BabyEvent): string {
     if (e.method) parts.push(METHOD_LABEL[e.method]);
     if (e.milk) parts.push(MILK_LABEL[e.milk]);
 
-    if (e.method === 'nursing' && e.side) parts.push(SIDE_LABEL[e.side]);
+    if (e.method === 'nursing' && e.side) parts.push(sideLabel(e.side));
     if (e.amountMl) parts.push(`${e.amountMl}ml`);
     if (e.durationMin) parts.push(`${e.durationMin} 分`);
 

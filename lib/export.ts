@@ -10,7 +10,7 @@ import {
   METHOD_LABEL,
   MILK_LABEL,
   SEX_LABEL,
-  SIDE_LABEL,
+  sideLabel,
   stoolCardLabel,
   TYPE_LABEL,
 } from './labels';
@@ -114,7 +114,7 @@ function toCsvRow(e: BabyEvent, babyById: Map<string, Baby>): string[] {
     e.milk ? MILK_LABEL[e.milk] : '',
     e.amountMl != null ? String(e.amountMl) : '',
     e.durationMin != null ? String(e.durationMin) : '',
-    e.side ? SIDE_LABEL[e.side] : '',
+    e.side ? sideLabel(e.side) : '',
     e.diaperKind ? DIAPER_KIND_LABEL[e.diaperKind] : '',
     e.stoolCard != null ? stoolCardLabel(e.stoolCard) : '',
     // 獨立一欄標出異常，醫生掃 CSV 時不用自己記 1–6 的規則

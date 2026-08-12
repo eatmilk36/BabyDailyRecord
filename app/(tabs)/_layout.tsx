@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
+import { useT } from '../../lib/useT';
 import { fontSize, radius, spacing, TAB_ACTIVE_TINT } from '../../theme/colors';
 import { useTheme } from '../../theme/useTheme';
 
@@ -45,6 +46,7 @@ function tabOptions(emoji: string, title: string) {
 
 export default function TabsLayout() {
   const t = useTheme();
+  const tr = useT();
 
   return (
     <Tabs
@@ -79,10 +81,10 @@ export default function TabsLayout() {
         },
       }}
     >
-      <Tabs.Screen name="index" options={tabOptions('🏠', '首頁')} />
-      <Tabs.Screen name="history" options={tabOptions('📖', '紀錄')} />
-      <Tabs.Screen name="stats" options={tabOptions('📊', '統計')} />
-      <Tabs.Screen name="settings" options={tabOptions('⚙️', '設定')} />
+      <Tabs.Screen name="index" options={tabOptions('🏠', tr('tab.home'))} />
+      <Tabs.Screen name="history" options={tabOptions('📖', tr('tab.history'))} />
+      <Tabs.Screen name="stats" options={tabOptions('📊', tr('tab.stats'))} />
+      <Tabs.Screen name="settings" options={tabOptions('⚙️', tr('tab.settings'))} />
     </Tabs>
   );
 }

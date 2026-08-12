@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { isFeedDue, type TodayStats } from '../db/queries';
 import type { Baby, BabyEvent, NursingSide } from '../db/schema';
-import { SIDE_LABEL, summarizeEvent } from '../lib/labels';
+import { sideLabel, summarizeEvent } from '../lib/labels';
 import { formatAgo, formatClock } from '../lib/time';
+import { useT } from '../lib/useT';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { numFont } from '../theme/fonts';
 import { useTheme } from '../theme/useTheme';
@@ -54,6 +55,7 @@ export function BabyCard({
   onStopSleep,
 }: Props) {
   const t = useTheme();
+  const tr = useT();
   const tone = t.baby[baby.colorKey];
   const feedDue = !activeNursing && isFeedDue(lastFeed, now);
 
@@ -79,7 +81,7 @@ export function BabyCard({
           <View style={[styles.badge, { backgroundColor: t.warn }]}>
             {/* 走 theme 而不是寫死白色：深色主題的 warn 是亮橘，白字只有 2.25:1 ——
                 全卡片最看不清的偏偏是唯一的警示 */}
-            <Text style={[styles.badgeText, { color: t.onWarn }]}>該餵了</Text>
+            <Text style={[styles.badgeText, { color: t.onWarn }]}>{tr('baby.feedDue')}</Text>
           </View>
         ) : null}
       </View>
@@ -88,14 +90,14 @@ export function BabyCard({
         emoji="🍼"
         event={lastFeed}
         now={now}
-        emptyText="還沒有喝奶紀錄"
+        emptyText={tr('baby.noFeedYet')}
         accent={t.feed}
       />
       <LastLine
         emoji="💧"
         event={lastDiaper}
         now={now}
-        emptyText="還沒有尿布紀錄"
+        emptyText={tr('baby.noDiaperYet')}
         accent={t.diaper}
       />
 
@@ -127,7 +129,11 @@ export function BabyCard({
         <View style={[styles.block, styles.slimRow]}>
           {!activeNursing ? (
             <SlimButton
-              label={suggestedSide ? `親餵 · 建議 ${SIDE_LABEL[suggestedSide]}` : '開始親餵'}
+              label={
+                suggestedSide
+                  ? tr('baby.startNursingSide', { side: sideLabel(suggestedSide) })
+                  : tr('baby.startNursing')
+              }
               tint={tone.base}
               // 邊框用 base 保留顏色識別，文字用 on 才讀得清楚（base 疊在 soft 上只有 1.7:1）
               labelColor={tone.on}
@@ -136,7 +142,7 @@ export function BabyCard({
           ) : null}
           {!activeSleep ? (
             <SlimButton
-              label="🌙 開始睡覺"
+              label={tr('baby.startSleep')}
               tint={tone.base}
               labelColor={tone.on}
               onPress={onStartSleep}
@@ -150,14 +156,14 @@ export function BabyCard({
             外框 = 是誰。半夜看的是最大的元素，而它原本完全沒有寶寶資訊。 */}
         <BigActionButton
           emoji="🍼"
-          label="喝奶"
+          label={tr('action.feed')}
           color={t.feed}
           borderColor={tone.base}
           onPress={onFeed}
         />
         <BigActionButton
           emoji="💧"
-          label="尿布"
+          label={tr('action.diaper')}
           color={t.diaper}
           borderColor={tone.base}
           onPress={onDiaper}

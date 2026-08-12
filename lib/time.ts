@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import {
   addDays,
   addMonths,
@@ -128,9 +129,9 @@ export const DATE_INPUT_MAX_LENGTH = 10;
 /** 早安 / 午安 / 晚安 / 深夜辛苦了 */
 export function greeting(now: number = Date.now()): string {
   const h = new Date(now).getHours();
-  if (h < 5) return '深夜辛苦了';
-  if (h < 11) return '早安';
-  if (h < 18) return '午安';
-  if (h < 23) return '晚安';
-  return '深夜辛苦了';
+  if (h < 5) return t('greeting.lateNight');
+  if (h < 11) return t('greeting.morning');
+  if (h < 18) return t('greeting.afternoon');
+  if (h < 23) return t('greeting.evening');
+  return t('greeting.lateNight');
 }

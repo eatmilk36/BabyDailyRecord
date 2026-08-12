@@ -12,6 +12,7 @@ import { exportCsv, exportJson } from '../../lib/export';
 import { importJson } from '../../lib/import';
 import { SEX_LABEL } from '../../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../../lib/time';
+import { LANGS } from '../../lib/i18n';
 import { useSettings, type ThemeMode } from '../../lib/settings';
 import { fontSize, radius, SKINS, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
 
@@ -112,7 +113,27 @@ export default function Settings() {
 
         <Section title="外觀">
           <Text style={[styles.note, { color: t.textMuted }]}>
-            皮膚與深淺模式會跟著「匯出 JSON 備份」一起帶走，換手機不用重設。
+            語言、皮膚與深淺模式會跟著「匯出 JSON 備份」一起帶走，換手機不用重設。
+          </Text>
+
+          <Text style={[styles.subLabel, { color: t.textMuted }]}>語言 / Language</Text>
+          <View style={styles.chipRow}>
+            {LANGS.map((l) => (
+              <Chip
+                key={l.key}
+                label={l.label}
+                tint={t.primary}
+                selected={settings.lang === l.key}
+                onPress={() => set('lang', l.key)}
+              />
+            ))}
+          </View>
+          <Text style={[styles.note, { color: t.textMuted }]}>
+            英文版是給只讀英文的照顧者用的。台灣特有的內容（九色大便卡、
+            兒童肝膽疾病防治基金會專線）在英文版會加上說明，不是直譯 ——
+            因為那張卡在寶寶手冊裡、那支電話在國外打不通。
+            {'\n'}
+            翻譯還在分批進行，目前只有一部分畫面切得動。
           </Text>
 
           <Text style={[styles.subLabel, { color: t.textMuted }]}>皮膚</Text>
