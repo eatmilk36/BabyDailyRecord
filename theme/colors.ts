@@ -16,6 +16,13 @@
  * 4. text 疊在 card 與兩個 baby.soft 上都要 ≥ 7:1。
  */
 
+/**
+ * ⚠️ 這裡【只能】用 import type。theme/colors.ts 幾乎每個畫面都會 import，
+ * 如果拉一條到 lib/i18n 的【執行期】相依，等於全專案任何碰到顏色的檔案
+ * 都得順帶把字典載進來。type-only 匯入編譯後整行消失，只借到型別、不留相依。
+ */
+import type { I18nKey } from '../lib/i18n';
+
 /** 每個寶寶的固定代表色。雙胞胎半夜辨識靠顏色與位置，不是讀名字。 */
 export type BabyColorKey = 'peach' | 'mint';
 
@@ -61,10 +68,18 @@ type Palette = {
 
 export type SkinKey = 'warmwood' | 'sakura' | 'seasalt';
 
-export const SKINS: { key: SkinKey; label: string; blurb: string }[] = [
-  { key: 'warmwood', label: '奶油暖木', blurb: '木地板、藤編、暖色燈泡——「家」的語言' },
-  { key: 'sakura', label: '粉櫻', blurb: '玫瑰粉 + 薰衣草紫，柔和不刺眼' },
-  { key: 'seasalt', label: '海鹽藍', blurb: '冷色低刺激，白天看最清爽' },
+/**
+ * 皮膚清單。設定頁 Chip 的排列順序就是這裡的順序。
+ *
+ * ⚠️ 存的是【字典 key】不是中文字面值。這是模組層級的常數，檔案第一次被 import
+ * 時就求值完畢，當下語言的字會被永久烘死在陣列裡 —— 之後切語言，畫面重繪了但
+ * 這三張 Chip 和底下那行說明還是舊語言。所以字面值一律留在 lib/i18n.ts，
+ * 由呼叫端在渲染當下 tr(s.labelKey)。
+ */
+export const SKINS: { key: SkinKey; labelKey: I18nKey; blurbKey: I18nKey }[] = [
+  { key: 'warmwood', labelKey: 'skin.warmwood', blurbKey: 'skin.warmwoodBlurb' },
+  { key: 'sakura', labelKey: 'skin.sakura', blurbKey: 'skin.sakuraBlurb' },
+  { key: 'seasalt', labelKey: 'skin.seasalt', blurbKey: 'skin.seasaltBlurb' },
 ];
 
 /** 奶油暖木（預設）。木頭色 + 奶油白是家的視覺語言，不是嬰兒房的粉藍。 */

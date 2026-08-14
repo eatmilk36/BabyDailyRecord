@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { db } from '../db/client';
 import { babies, events } from '../db/schema';
 import { EXPORT_FORMAT } from './export';
+// ⚠️ 這是純模組（沒有 React），所以用模組層級的 t() 而不是 useT()。
+// 沒有循環相依：lib/i18n.ts 不 import 專案內的任何模組（理由見它開頭的註解）。
+import { plural, t } from './i18n';
 
 /**
  * 從 JSON 備份還原。
@@ -95,7 +98,9 @@ export async function importJson(): Promise<ImportResult | null> {
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new Error('這不是有效的 JSON 檔案');
+    // ⚠️ 這幾句 Error 訊息【會原封不動顯示給使用者】——onboarding 與設定頁都是
+    //    Alert.alert('匯入失敗', e.message)，所以它們是文案不是內部日誌，必須翻。
+    throw new Error(t('import.invalidJson'));
   }
 
   const parsed = backupSchema.safeParse(raw);
@@ -104,11 +109,18 @@ export async function importJson(): Promise<ImportResult | null> {
     // 結果真正的原因是 schema 漏了 sleep/pump/growth 三種 type，
     // 而那句話讓人以為是選錯檔案，完全查不到真因。
     const issues = parsed.error.issues.slice(0, 3).map((i) => {
-      const where = i.path.length > 0 ? i.path.join('.') : '(根層級)';
-      return `· ${where}：${i.message}`;
+      const where = i.path.length > 0 ? i.path.join('.') : t('import.rootLevel');
+      // ⚠️ {message} 是 zod 函式庫自己吐出來的英文訊息，【不翻譯】——我們只翻包在外面的框架句。
+      //    副作用是中文模式會看到「中文框架句 + 英文 zod 訊息」，這是既有行為，這批不處理。
+      return t('import.issueLine', { where, message: i.message });
     });
-    const more = parsed.error.issues.length > 3 ? `\n（另有 ${parsed.error.issues.length - 3} 個問題）` : '';
-    throw new Error(`這個檔案的格式不符：\n${issues.join('\n')}${more}`);
+    const extra = parsed.error.issues.length - 3;
+    // plural()：英文要分「1 more problem」與「2 more problems」；中文兩個字典值一樣，等於 no-op。
+    // ⚠️ 前面那個 '\n' 是接在 issues 後面的分隔換行，屬於【組裝】不是文案，所以留在程式碼裡。
+    const more = extra > 0 ? '\n' + t(plural(extra, 'import.moreIssues'), { n: extra }) : '';
+    // ⚠️ 同理，這裡的換行與 join('\n') 也不進字典——字典只放句子，版面規則留在程式碼，
+    //    否則等於把排版交到翻譯者手上。
+    throw new Error(`${t('import.badFormat')}\n${issues.join('\n')}${more}`);
   }
   const backup = parsed.data;
 

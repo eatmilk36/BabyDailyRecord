@@ -19,6 +19,7 @@ import type { Baby } from '../db/schema';
 import { importJson } from '../lib/import';
 import { sexLabel } from '../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../lib/time';
+import { useT } from '../lib/useT';
 import { fontSize, radius, spacing } from '../theme/colors';
 import { useTheme } from '../theme/useTheme';
 
@@ -34,6 +35,9 @@ import { useTheme } from '../theme/useTheme';
  */
 export default function Onboarding() {
   const t = useTheme();
+  // ⚠️ 這一頁的三個元件都已經把主題物件命名為 t，所以翻譯函式一律叫 tr。
+  //    順手寫成 const t = useT() 會把主題蓋掉，t.bg／t.text 全變成 undefined，整頁樣式炸掉。
+  const tr = useT();
   const [nameA, setNameA] = useState('');
   const [nameB, setNameB] = useState('');
   const [sexA, setSexA] = useState<Baby['sex']>(null);
@@ -58,7 +62,8 @@ export default function Onboarding() {
     } catch (e) {
       // 沒有 catch 的話：按鈕從「建立中…」變回「開始使用」、不導航、不提示，
       // 而 index.tsx 會因為 babies 仍為空一直把你踢回這一頁 —— 整個 APP 進不去。
-      Alert.alert('建立失敗', e instanceof Error ? e.message : String(e));
+      // 內文是原始錯誤訊息，刻意不翻譯也不進字典 —— 那是要拿去查的技術字串，翻了反而對不上。
+      Alert.alert(tr('onboard.createFailedTitle'), e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
@@ -81,22 +86,33 @@ export default function Onboarding() {
       const result = await importJson();
       if (!result) return; // 使用者取消選檔
       if (result.babiesAdded === 0) {
+        // ⚠️ 換行是【字典值本身】帶的（Line1 尾一個、Line2 尾兩個、Line3 沒有），
+        //    所以這裡維持一行一個 key 的 + 串接。改成 [...].join('\n') 會多出／少掉換行，
+        //    Line2 後面那個空行也會消失。
         Alert.alert(
-          '匯入完成，但沒有加入寶寶',
-          `這份備份裡的寶寶都已經存在（跳過 ${result.babiesSkipped} 筆）。\n` +
-            `紀錄新增 ${result.eventsAdded} 筆。\n\n` +
-            '如果這不是你預期的結果，請確認選到的是正確的備份檔。',
+          tr('onboard.importNoBabiesTitle'),
+          tr('onboard.importNoBabiesLine1', { n: result.babiesSkipped }) +
+            tr('onboard.importNoBabiesLine2', { n: result.eventsAdded }) +
+            tr('onboard.importNoBabiesLine3'),
         );
         return;
       }
       Alert.alert(
-        '匯入完成',
-        `寶寶：新增 ${result.babiesAdded}、跳過 ${result.babiesSkipped}\n` +
-          `紀錄：新增 ${result.eventsAdded}、跳過 ${result.eventsSkipped}`,
-        [{ text: '好', onPress: () => router.replace('/') }],
+        tr('onboard.importDoneTitle'),
+        tr('onboard.importDoneBabies', {
+          added: result.babiesAdded,
+          skipped: result.babiesSkipped,
+        }) +
+          tr('onboard.importDoneEvents', {
+            added: result.eventsAdded,
+            skipped: result.eventsSkipped,
+          }),
+        // 「好」用共用的 common.ok，不另外開 onboard.* 的 key —— 同一個字面在字典裡開兩份，
+        // 改天只改到其中一份就會兩邊不一致。
+        [{ text: tr('common.ok'), onPress: () => router.replace('/') }],
       );
     } catch (e) {
-      Alert.alert('匯入失敗', e instanceof Error ? e.message : String(e));
+      Alert.alert(tr('onboard.importFailedTitle'), e instanceof Error ? e.message : String(e));
     } finally {
       setImporting(false);
     }
@@ -109,24 +125,38 @@ export default function Onboarding() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.title, { color: t.text }]}>歡迎</Text>
-          <Text style={[styles.subtitle, { color: t.textMuted }]}>
-            先告訴我兩個寶寶的名字，之後在設定裡都可以改。
-          </Text>
+          <Text style={[styles.title, { color: t.text }]}>{tr('onboard.title')}</Text>
+          {/* 原本是跨行縮排的 JSX 文字節點（React 會折成單一空白），換成 tr() 之後就是
+              字典裡那個折疊好的單行值，畫面寬度不變。 */}
+          <Text style={[styles.subtitle, { color: t.textMuted }]}>{tr('onboard.subtitle')}</Text>
 
-          <Field label="第一個寶寶" value={nameA} onChange={setNameA} placeholder="例如：小熊" />
+          {/* Field 的 label／placeholder 是 props，所以在呼叫端翻好再傳進去，
+              Field 自己不必知道 i18n 的存在。 */}
+          <Field
+            label={tr('onboard.babyOneLabel')}
+            value={nameA}
+            onChange={setNameA}
+            placeholder={tr('onboard.babyOnePlaceholder')}
+          />
           <SexPicker value={sexA} onChange={setSexA} />
 
-          <Field label="第二個寶寶" value={nameB} onChange={setNameB} placeholder="例如：小兔" />
+          <Field
+            label={tr('onboard.babyTwoLabel')}
+            value={nameB}
+            onChange={setNameB}
+            placeholder={tr('onboard.babyTwoPlaceholder')}
+          />
           <SexPicker value={sexB} onChange={setSexB} />
 
           <View style={styles.field}>
-            <Text style={[styles.label, { color: t.textMuted }]}>出生日期（兩個寶寶共用）</Text>
+            <Text style={[styles.label, { color: t.textMuted }]}>{tr('onboard.birthLabel')}</Text>
             <TextInput
               value={birth}
               // 只吃數字，`-` 自動補。打 20260624 就會變成 2026-06-24
               onChangeText={(text) => setBirth(maskDateInput(text))}
-              placeholder="YYYYMMDD（直接打數字）"
+              // placeholder 的括號講的就是上面這行遮罩的行為，兩本字典都要保住「只要打數字」
+              // 這句 —— 少了它，使用者會在數字鍵盤上找不存在的「-」鍵。
+              placeholder={tr('onboard.birthPlaceholder')}
               placeholderTextColor={t.textMuted}
               keyboardType="number-pad"
               maxLength={DATE_INPUT_MAX_LENGTH}
@@ -143,18 +173,20 @@ export default function Onboarding() {
                   { color: birthValid && notFuture ? t.textMuted : t.warn },
                 ]}
               >
+                {/* formatBabyAge() 自己已經走 time.ageDays／ageMonth／ageMonthDay，
+                    所以 onboard.ageConfirm 只包外面那句反問，年齡直接當 {age} 內插進去。 */}
                 {!birthValid
-                  ? '格式要像 2026-06-24'
+                  ? tr('onboard.birthFormatHint')
                   : !notFuture
-                    ? '出生日期不能在未來'
-                    : `${formatBabyAge(birth)} — 對嗎？`}
+                    ? tr('onboard.birthFuture')
+                    : tr('onboard.ageConfirm', { age: formatBabyAge(birth) })}
               </Text>
             ) : null}
           </View>
 
           <View style={styles.actions}>
             <SlimButton
-              label={saving ? '建立中…' : '開始使用'}
+              label={saving ? tr('onboard.creating') : tr('onboard.start')}
               onPress={handleSave}
               disabled={!canSave || saving}
               filled
@@ -166,19 +198,18 @@ export default function Onboarding() {
           {!canSave ? (
             <Text style={[styles.hint, { color: t.textMuted }]}>
               {nameA.trim().length === 0 || nameB.trim().length === 0
-                ? '兩個寶寶的名字都要填。'
-                : '出生日期還沒填好。'}
+                ? tr('onboard.needNames')
+                : tr('onboard.needBirth')}
             </Text>
           ) : null}
 
           <View style={styles.importBlock}>
-            <Text style={[styles.hint, { color: t.textMuted }]}>
-              換手機或從 Expo Go 搬到獨立 APP？先匯入備份，不要在這裡重新建立 ——
-              不然匯入之後會變成 4 個寶寶，而多出來的兩個沒辦法刪。
-            </Text>
+            {/* 同樣是原本跨行縮排的文字節點，「重新建立 ——」與「不然」之間那個空白是
+                React 折出來的，字典值已經是折疊後的單行。 */}
+            <Text style={[styles.hint, { color: t.textMuted }]}>{tr('onboard.importHint')}</Text>
             <View style={styles.actions}>
               <SlimButton
-                label={importing ? '匯入中…' : '我有備份要匯入'}
+                label={importing ? tr('onboard.importing') : tr('onboard.importButton')}
                 onPress={handleImport}
                 disabled={importing || saving}
               />
@@ -203,10 +234,13 @@ function SexPicker({
   onChange: (v: Baby['sex']) => void;
 }) {
   const t = useTheme();
+  // ⚠️ 這裡的 t 也是主題，翻譯函式同樣叫 tr（見 Onboarding 的說明）。
+  const tr = useT();
   return (
     <View style={styles.sexRow}>
-      <Text style={[styles.label, { color: t.textMuted }]}>性別（選填）</Text>
+      <Text style={[styles.label, { color: t.textMuted }]}>{tr('onboard.sexLabel')}</Text>
       <View style={styles.sexChips}>
+        {/* 選項文字走 sexLabel()，字典裡已經是 sex.boy／sex.girl，不要在 onboard.* 再開一份 */}
         {(['boy', 'girl'] as const).map((s) => (
           <Chip
             key={s}

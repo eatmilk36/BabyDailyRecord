@@ -12,16 +12,36 @@ import { exportCsv, exportJson } from '../../lib/export';
 import { importJson } from '../../lib/import';
 import { sexLabel } from '../../lib/labels';
 import { DATE_INPUT_MAX_LENGTH, formatBabyAge, maskDateInput } from '../../lib/time';
-import { LANGS } from '../../lib/i18n';
+import { LANGS, type I18nKey } from '../../lib/i18n';
+import { useT } from '../../lib/useT';
 import { useSettings, type ThemeMode } from '../../lib/settings';
 import { fontSize, radius, SKINS, spacing, TAB_BAR_HEIGHT } from '../../theme/colors';
 
-const THEME_MODES: { key: ThemeMode; label: string }[] = [
-  { key: 'auto', label: '跟隨系統' },
-  { key: 'light', label: '淺色' },
-  { key: 'dark', label: '深色' },
+/**
+ * 深淺模式的三個選項。
+ *
+ * ⚠️ 存的是【字典 key】不是中文字面值 —— 模組層級的常數在檔案第一次被 import
+ * 時就求值完畢，當下語言的字會被永久烘死在陣列裡，之後切語言這三張 Chip
+ * 不會跟著變。字面值留在字典，渲染當下才 tr(m.labelKey)。（SKINS 同理。）
+ */
+const THEME_MODES: { key: ThemeMode; labelKey: I18nKey }[] = [
+  { key: 'auto', labelKey: 'mode.auto' },
+  { key: 'light', labelKey: 'mode.light' },
+  { key: 'dark', labelKey: 'mode.dark' },
 ];
 import { useTheme } from '../../theme/useTheme';
+
+/**
+ * busy 用的內部識別碼。
+ *
+ * ⚠️ 這裡放的是【狀態值】不是顯示文字，兩者必須分開。原本是拿中文按鈕字
+ * 當識別碼（busy === '匯出JSON'），如果順手把那串字也搬進字典、改成
+ * busy === tr('settings.exportJson')，語言一切換比較就對不起來 ——
+ * 送出時存的是中文、比較時拿到的是英文，按鈕永遠不會顯示「處理中…」；
+ * 反方向則會卡在「處理中…」出不來。
+ * 定成 union 而不是 string，是為了讓打錯字在 tsc 就爆。
+ */
+type BusyJob = 'exportJson' | 'exportCsv' | 'import' | 'notify';
 
 /**
  * 設定頁：寶寶資料 + 備份。
@@ -31,18 +51,24 @@ import { useTheme } from '../../theme/useTheme';
  */
 export default function Settings() {
   const t = useTheme();
+  const tr = useT();
   const { babies } = useBabies();
   const insets = useSafeAreaInsets();
   const { settings, set } = useSettings();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState<BusyJob | null>(null);
 
-  async function run(label: string, fn: () => Promise<void>) {
+  // 皮膚壞掉（例如匯入了一份舊備份、裡面的 skin 值已經不存在）時退回第一組，
+  // 而不是讓底下那行說明整段消失。順便讓 tr() 拿到的一定是 I18nKey 不是 undefined。
+  const skin = SKINS.find((s) => s.key === settings.skin) ?? SKINS[0];
+
+  async function run(job: BusyJob, fn: () => Promise<void>) {
     if (busy) return;
-    setBusy(label);
+    setBusy(job);
     try {
       await fn();
     } catch (e) {
-      Alert.alert('失敗', e instanceof Error ? e.message : String(e));
+      // 四件事共用這個標題，所以不能寫死是哪一件
+      Alert.alert(tr('settings.opFailed'), e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
     }
@@ -59,33 +85,33 @@ export default function Settings() {
    * 並明確提醒去目的地確認 —— 不能宣稱「備份完成」。
    */
   async function handleExport(kind: 'json' | 'csv') {
-    await run(kind === 'json' ? '匯出JSON' : '匯出CSV', async () => {
+    await run(kind === 'json' ? 'exportJson' : 'exportCsv', async () => {
       const r = kind === 'json' ? await exportJson() : await exportCsv();
       Alert.alert(
-        '檔案已產生',
+        tr('settings.exportDoneTitle'),
         [
+          // 檔名是使用者要去目的地認的字串，不進字典
           r.filename,
           '',
-          `寶寶 ${r.babies} 筆、紀錄 ${r.events} 筆`,
+          tr('settings.exportCounts', { babies: r.babies, events: r.events }),
           '',
-          '⚠️ 分享選單開過不等於存好了。請到你選的目的地（雲端硬碟、LINE…）' +
-            '確認檔案真的在那裡 —— 這是這個 APP 唯一的備份途徑。',
+          tr('settings.exportVerifyNote'),
         ].join('\n'),
       );
     });
   }
 
   async function handleImport() {
-    await run('匯入', async () => {
+    await run('import', async () => {
       const result = await importJson();
       if (!result) return; // 使用者取消
       Alert.alert(
-        '匯入完成',
+        tr('settings.importDoneTitle'),
         [
-          `寶寶：新增 ${result.babiesAdded}、跳過 ${result.babiesSkipped}`,
-          `紀錄：新增 ${result.eventsAdded}、跳過 ${result.eventsSkipped}`,
+          tr('settings.importBabies', { added: result.babiesAdded, skipped: result.babiesSkipped }),
+          tr('settings.importEvents', { added: result.eventsAdded, skipped: result.eventsSkipped }),
           '',
-          '已存在的 id 一律跳過，不會覆蓋現有資料。',
+          tr('settings.importSkipNote'),
         ].join('\n'),
       );
     });
@@ -103,20 +129,22 @@ export default function Settings() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.title, { color: t.text }]}>設定</Text>
+        <Text style={[styles.title, { color: t.text }]}>{tr('settings.title')}</Text>
 
-        <Section title="寶寶">
+        <Section title={tr('settings.sectionBaby')}>
           {babies.map((baby) => (
             <BabyEditor key={baby.id} baby={baby} />
           ))}
         </Section>
 
-        <Section title="外觀">
+        <Section title={tr('settings.sectionAppearance')}>
           <Text style={[styles.note, { color: t.textMuted }]}>
-            語言、皮膚與深淺模式會跟著「匯出 JSON 備份」一起帶走，換手機不用重設。
+            {tr('settings.appearanceNote')}
           </Text>
 
-          <Text style={[styles.subLabel, { color: t.textMuted }]}>語言 / Language</Text>
+          {/* ⚠️ 這個標籤在兩本字典裡都是雙語，不是漏翻 —— 介面還不是你的語言時，
+              這是唯一要讓你找得到的那一行 */}
+          <Text style={[styles.subLabel, { color: t.textMuted }]}>{tr('settings.langLabel')}</Text>
           <View style={styles.chipRow}>
             {LANGS.map((l) => (
               <Chip
@@ -128,60 +156,61 @@ export default function Settings() {
               />
             ))}
           </View>
+          {/* langNote2 講的是「只有版本更新說明保持中文」—— 那個例外是永久的
+              （lib/build.ts 刻意不翻譯），所以這段文案不會過幾週又變成假的 */}
           <Text style={[styles.note, { color: t.textMuted }]}>
-            英文版是給只讀英文的照顧者用的。台灣特有的內容（九色大便卡、
-            兒童肝膽疾病防治基金會專線）在英文版會加上說明，不是直譯 ——
-            因為那張卡在寶寶手冊裡、那支電話在國外打不通。
+            {tr('settings.langNote1')}
             {'\n'}
-            翻譯還在分批進行，目前只有一部分畫面切得動。
+            {tr('settings.langNote2')}
           </Text>
 
-          <Text style={[styles.subLabel, { color: t.textMuted }]}>皮膚</Text>
+          <Text style={[styles.subLabel, { color: t.textMuted }]}>{tr('settings.skinLabel')}</Text>
           <View style={styles.chipRow}>
             {SKINS.map((s) => (
               <Chip
                 key={s.key}
-                label={s.label}
+                label={tr(s.labelKey)}
                 tint={t.primary}
                 selected={settings.skin === s.key}
                 onPress={() => set('skin', s.key)}
               />
             ))}
           </View>
-          <Text style={[styles.note, { color: t.textMuted }]}>
-            {SKINS.find((s) => s.key === settings.skin)?.blurb}
-          </Text>
+          <Text style={[styles.note, { color: t.textMuted }]}>{tr(skin.blurbKey)}</Text>
 
-          <Text style={[styles.subLabel, { color: t.textMuted }]}>深淺模式</Text>
+          <Text style={[styles.subLabel, { color: t.textMuted }]}>
+            {tr('settings.themeModeLabel')}
+          </Text>
           <View style={styles.chipRow}>
             {THEME_MODES.map((m) => (
               <Chip
                 key={m.key}
-                label={m.label}
+                label={tr(m.labelKey)}
                 tint={t.primary}
                 selected={settings.themeMode === m.key}
                 onPress={() => set('themeMode', m.key)}
               />
             ))}
           </View>
+          {/* ⚠️ themeModeNote2 引號裡是 mode.auto 的字面值。改其中一個就要改另一個，
+              否則說明會指向一顆畫面上叫別的名字的按鈕 */}
           <Text style={[styles.note, { color: t.textMuted }]}>
-            深色模式在這個 APP 不只是偏好 —— 半夜開燈會吵醒兩個寶寶，
-            所以深色版是低亮度的「夜燈」，不是把淺色反過來。
+            {tr('settings.themeModeNote1')}
             {'\n'}
-            「跟隨系統」會照你手機的自動深色排程走。
+            {tr('settings.themeModeNote2')}
           </Text>
         </Section>
 
-        <Section title="備份">
+        <Section title={tr('settings.sectionBackup')}>
+          {/* 兩段之間的空行是排版不是字，所以 {'\n\n'} 留在 JSX 裡不進字典 */}
           <Text style={[styles.note, { color: t.textMuted }]}>
-            這個版本資料只存在這台手機。建議每週匯出一次 JSON 丟到雲端硬碟。
+            {tr('settings.backupNote1')}
             {'\n\n'}
-            另外：現在資料存在 Expo Go 的沙箱裡。之後如果把 APP 裝成獨立的 APK，
-            要先在這裡匯出 JSON、再到新 APP 匯入，資料才會跟著搬過去。
+            {tr('settings.backupNote2')}
           </Text>
           <View style={styles.buttonRow}>
             <SlimButton
-              label={busy === '匯出JSON' ? '處理中…' : '匯出 JSON 備份'}
+              label={busy === 'exportJson' ? tr('settings.working') : tr('settings.exportJson')}
               tint={t.primary}
               filled
               disabled={!!busy}
@@ -190,7 +219,7 @@ export default function Settings() {
           </View>
           <View style={styles.buttonRow}>
             <SlimButton
-              label={busy === '匯出CSV' ? '處理中…' : '匯出 CSV（給醫生看）'}
+              label={busy === 'exportCsv' ? tr('settings.working') : tr('settings.exportCsv')}
               tint={t.primary}
               disabled={!!busy}
               onPress={() => handleExport('csv')}
@@ -198,7 +227,7 @@ export default function Settings() {
           </View>
           <View style={styles.buttonRow}>
             <SlimButton
-              label={busy === '匯入' ? '處理中…' : '從 JSON 匯入'}
+              label={busy === 'import' ? tr('settings.working') : tr('settings.importJson')}
               tint={t.diaper}
               disabled={!!busy}
               onPress={handleImport}
@@ -206,16 +235,15 @@ export default function Settings() {
           </View>
         </Section>
 
-        <Section title="通知">
+        <Section title={tr('settings.sectionNotifications')}>
+          {/* ⚠️ {min} 由 NURSING_OVERDUE_MIN 帶入，不要在字典裡寫死 60 ——
+              常數改了文案要跟著改，這種漏改沒有人會發現 */}
           <Text style={[styles.note, { color: t.textMuted }]}>
-            開始親餵時會排一則 {NURSING_OVERDUE_MIN} 分鐘後的「還在餵嗎？」提醒，按結束就會取消。
-            這是手機自己排的本地通知，不需要網路也不經過任何伺服器。
+            {tr('settings.notifyNote1', { min: NURSING_OVERDUE_MIN })}
             {'\n\n'}
-            第一次開始親餵時會請求通知權限。拒絕也沒關係，記錄完全不受影響，
-            只是少了鎖屏提醒、仍然會在 APP 內顯示警示橫幅。
+            {tr('settings.notifyNote2')}
             {'\n\n'}
-            ⚠️ 小米／華為／OPPO 等系統的省電機制可能延遲或吃掉通知。
-            若提醒沒出現，去系統設定把「寶寶日誌」（Expo Go）排除在電池最佳化之外。
+            {tr('settings.notifyNote3')}
           </Text>
           <View style={styles.buttonRow}>
             {/* ⚠️ 原本這顆叫「測試通知權限」，而它只讀權限旗標然後回答
@@ -223,28 +251,25 @@ export default function Settings() {
                 允不允許，不決定送不送到；真正會讓這個功能失效的是省電機制。
                 改成實際發一則，讓你自己看它有沒有出現在鎖屏上。 */}
             <SlimButton
-              label={busy === '通知' ? '處理中…' : '發送測試通知'}
+              label={busy === 'notify' ? tr('settings.working') : tr('settings.sendTest')}
               tint={t.primary}
               disabled={!!busy}
               onPress={() =>
-                run('通知', async () => {
+                run('notify', async () => {
                   const ok = await sendTestNotification();
                   if (!ok) {
-                    Alert.alert(
-                      '沒有通知權限',
-                      '你之前拒絕過通知權限，要到系統設定裡手動開啟。記錄功能完全不受影響。',
-                    );
+                    Alert.alert(tr('settings.noPermTitle'), tr('settings.noPermBody'));
                     return;
                   }
                   Alert.alert(
-                    `${TEST_NOTIFICATION_DELAY_SEC} 秒後會送出`,
+                    tr('settings.testScheduledTitle', { sec: TEST_NOTIFICATION_DELAY_SEC }),
                     [
-                      '現在請【把螢幕關掉】，然後等一下。',
+                      tr('settings.testStep1'),
                       '',
-                      '看到通知 = 鎖屏提醒會正常送到。',
-                      '沒看到 = 被省電機制吃掉了，要去系統設定把 Expo Go 排除在電池最佳化之外。',
+                      tr('settings.testSeen'),
+                      tr('settings.testNotSeen'),
                       '',
-                      '權限有開不代表送得到，所以只能用實際送一則來確認。',
+                      tr('settings.testWhy'),
                     ].join('\n'),
                   );
                 })
@@ -253,23 +278,29 @@ export default function Settings() {
           </View>
         </Section>
 
-        <Section title="關於">
+        <Section title={tr('settings.sectionAbout')}>
           <Text style={[styles.note, { color: t.textMuted }]}>
-            寶寶日誌 v1{'\n'}
-            資料只存在這台手機。兩人共用同一份紀錄需要一個同步伺服器，尚未實作。
+            {tr('settings.aboutName')}
+            {'\n'}
+            {tr('settings.aboutSync')}
           </Text>
 
           {/* 版本標記。Expo Go 不會自己更新 bundle，所以「我看到的是新版還是舊版」
               沒辦法從畫面猜。這一行就是答案。 */}
           <View style={[styles.buildBox, { backgroundColor: t.card, borderColor: t.cardBorder }]}>
-            <Text style={[styles.buildTag, { color: t.text }]}>版本 {BUILD_TAG}</Text>
+            {/* ⚠️ 只有「版本」兩個字會翻譯，BUILD_TAG 與 BUILD_NOTES 原樣帶入 ——
+                lib/build.ts 是拿來核對 bundle 版本的中文說明，刻意永遠不翻譯。
+                所以英文介面這裡會是「英文標題 + 中文清單」，這不是壞掉，
+                理由已經寫在上面外觀區的 settings.langNote2 告訴使用者了。 */}
+            <Text style={[styles.buildTag, { color: t.text }]}>
+              {tr('settings.buildTag', { tag: BUILD_TAG })}
+            </Text>
             <Text style={[styles.note, { color: t.textMuted }]}>
-              這一版應該有：
+              {tr('settings.buildNotesHeading')}
               {'\n'}
               {BUILD_NOTES.map((n) => `· ${n}`).join('\n')}
               {'\n\n'}
-              對不上就是 Expo Go 還在跑舊的 JS：搖手機叫出開發者選單按 Reload，
-              或強制關閉 Expo Go 後重新輸入網址載入。
+              {tr('settings.buildMismatch')}
             </Text>
           </View>
         </Section>
@@ -295,6 +326,7 @@ export default function Settings() {
  */
 function BabyEditor({ baby }: { baby: Baby }) {
   const t = useTheme();
+  const tr = useT();
   const tone = t.baby[baby.colorKey];
   const [name, setName] = useState(baby.name);
   const [birth, setBirth] = useState(baby.birthDate);
@@ -309,12 +341,14 @@ function BabyEditor({ baby }: { baby: Baby }) {
   const dirty = name.trim() !== baby.name || birth !== baby.birthDate;
   const canSave = nameOk && birthValid && notFuture;
 
+  // ⚠️ 範例日期在兩本字典裡【必須完全一樣】：那示範的是要照著打的 ISO 格式，
+  // 換成在地寫法會讓使用者打出存不進去的字串
   const problem = !nameOk
-    ? '名字不能空白'
+    ? tr('settings.errNameEmpty')
     : !birthValid
-      ? '生日格式要像 2026-06-24'
+      ? tr('settings.errBirthFormat')
       : !notFuture
-        ? '生日不能在未來'
+        ? tr('settings.errBirthFuture')
         : null;
 
   async function save() {
@@ -323,7 +357,7 @@ function BabyEditor({ baby }: { baby: Baby }) {
     try {
       await updateBaby(baby.id, { name: name.trim(), birthDate: birth });
     } catch (e) {
-      Alert.alert('存不進去', e instanceof Error ? e.message : String(e));
+      Alert.alert(tr('modal.saveFailed'), e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
@@ -340,7 +374,7 @@ function BabyEditor({ baby }: { baby: Baby }) {
     } catch (e) {
       // 原本是 fire-and-forget：寫入失敗時 Chip 不會變成選中樣式，
       // 但有觸覺回饋，所以完全分不出「沒反應」和「存了但沒重繪」
-      Alert.alert('存不進去', e instanceof Error ? e.message : String(e));
+      Alert.alert(tr('modal.saveFailed'), e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -366,7 +400,7 @@ function BabyEditor({ baby }: { baby: Baby }) {
         onBlur={() => {
           if (dirty && canSave) void save();
         }}
-        placeholder="名字"
+        placeholder={tr('settings.namePlaceholder')}
         placeholderTextColor={t.textMuted}
         style={[styles.input, { color: t.text, borderColor: t.cardBorder, backgroundColor: t.card }]}
       />
@@ -376,7 +410,8 @@ function BabyEditor({ baby }: { baby: Baby }) {
         onBlur={() => {
           if (dirty && canSave) void save();
         }}
-        placeholder="YYYYMMDD（直接打數字）"
+        // YYYYMMDD 兩本字典都不翻譯：那是要照著打的格式本身
+        placeholder={tr('settings.birthPlaceholder')}
         placeholderTextColor={t.textMuted}
         keyboardType="number-pad"
         maxLength={DATE_INPUT_MAX_LENGTH}
@@ -391,17 +426,24 @@ function BabyEditor({ baby }: { baby: Baby }) {
       {dirty ? (
         <View style={styles.dirtyRow}>
           <Text style={[styles.dirtyText, { color: t.warn }]}>
-            {saving ? '儲存中…' : '尚未儲存'}
+            {saving ? tr('settings.saving') : tr('settings.unsaved')}
           </Text>
           <View style={styles.dirtyButtons}>
             <SlimButton
-              label="儲存"
+              label={tr('common.save')}
               tint={t.primary}
               filled
               disabled={!canSave || saving}
               onPress={save}
             />
-            <SlimButton label="還原" tint={t.textMuted} disabled={saving} onPress={revert} />
+            {/* ⚠️ 是 common.revert（"Discard"，丟掉還沒存的修改）不是 common.restore
+                （「復原」／"Undo"，那是刪掉之後的復原，語意不同） */}
+            <SlimButton
+              label={tr('common.revert')}
+              tint={t.textMuted}
+              disabled={saving}
+              onPress={revert}
+            />
           </View>
         </View>
       ) : null}

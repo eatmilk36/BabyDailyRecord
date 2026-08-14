@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
+import { t } from './i18n';
 
 /** 解鎖前的冷卻時間。要蓋過 modal 推入的轉場動畫，否則動畫期間還能再按到底層按鈕。 */
 const COOLDOWN_MS = 700;
@@ -49,11 +50,23 @@ export function useActionLock() {
        * 放在鎖裡而不是每個 handler 裡：所有記錄按鈕都經過這裡，
        * 一處補上就全部覆蓋，而且不可能有人漏寫。
        */
+      /**
+       * ⚠️ 這裡【不能】改用 useT()，雖然這是一個 hook，看起來比較「一致」。
+       *
+       * 這個 useCallback 的 deps 是 []，而且必須是 []：鎖的狀態放在 ref 裡，
+       * callback 的 identity 要穩定，否則每次重繪都換一顆新的 onPress。
+       * useT() 回傳的 tr 會被【永久凍結在第一次 render 的語言】——
+       * 使用者切成英文之後，這個 Alert 還是會跳中文。要修就得把 tr 塞進 deps，
+       * 那等於為了一句錯誤訊息拆掉這個 hook 存在的前提。
+       *
+       * 而模組層級的 t() 每次呼叫都現讀 currentLang（由 SettingsProvider 同步），
+       * 在這裡是正確的：Alert 是一次性的，文字在「按下去的那一刻」才決定，
+       * 沒有任何東西需要因為語言改變而重畫。
+       */
       Alert.alert(
-        '沒有存進去',
-        `${e instanceof Error ? e.message : String(e)}\n\n` +
-          '這一筆沒有寫入資料庫。如果一直出現，請到「設定 → 匯出 JSON 備份」' +
-          '先把現有資料存出來。',
+        t('lock.saveFailedTitle'),
+        // e.message 前面那段換行是【組裝】不是文案，所以留在程式碼裡，不進字典。
+        `${e instanceof Error ? e.message : String(e)}\n\n` + t('lock.saveFailedBody'),
       );
     } finally {
       if (timer.current) clearTimeout(timer.current);

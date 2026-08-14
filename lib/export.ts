@@ -60,7 +60,7 @@ export async function exportJson(): Promise<ExportResult> {
   return { filename, babies: data.babies.length, events: data.events.length };
 }
 
-/** 給醫生看的表（CSV）。只含未刪除的紀錄，欄位是中文表頭。 */
+/** 給醫生看的表（CSV）。只含未刪除的紀錄，表頭跟著 APP 語言走。 */
 export async function exportCsv(): Promise<ExportResult> {
   const { babies, events } = await dumpAll();
   const babyById = new Map(babies.map((b) => [b.id, b]));
@@ -70,26 +70,34 @@ export async function exportCsv(): Promise<ExportResult> {
     .sort((a, b) => a.occurredAt - b.occurredAt)
     .map((e) => toCsvRow(e, babyById));
 
+  // 表頭【跟著 APP 語言走】，所以英文模式匯出的 CSV 會整張變英文——連遞給台灣醫生的
+  // 那一份也是。這是刻意的取捨：值早就走字典了，若表頭留中文就變成「中文表頭 + 英文值」，
+  // 讀者得在兩套詞彙之間換檔，比全英文更難讀。全英文至少是一致的，而使用者切成英文
+  // 本來就是他自己的選擇。真要中文表格，切回中文再匯出一次即可。
+  //
+  // ⚠️ 這個陣列必須留在函式體內，不可提到模組層級。模組層級的 const 只會在 import 時
+  //    求值一次，那時 currentLang 還是預設的 zh-TW——使用者切成英文後匯出仍會拿到中文表頭。
   const header = [
-    '寶寶',
-    '性別',
-    '日期',
-    '時間',
-    '類型',
-    '餵法',
-    '奶種',
-    '奶量ml',
-    // durationMin 同時用在親餵與睡眠，欄名不能只寫「親餵分鐘」
-    '時長分鐘',
-    '哪一邊',
-    '尿布類型',
-    '大便卡編號',
-    '大便卡異常',
-    '大便顏色(舊)',
-    '體重kg',
-    '身長cm',
-    '頭圍cm',
-    '備註',
+    t('csv.headerBaby'),
+    t('csv.headerSex'),
+    t('csv.headerDate'),
+    t('csv.headerTime'),
+    t('csv.headerType'),
+    t('csv.headerMethod'),
+    t('csv.headerMilk'),
+    t('csv.headerAmountMl'),
+    // durationMin 同時用在親餵與睡眠，欄名不能只寫「親餵分鐘」／'Nursing min'，
+    // 否則睡眠那幾列會被標成親餵
+    t('csv.headerDurationMin'),
+    t('csv.headerSide'),
+    t('csv.headerDiaperKind'),
+    t('csv.headerStoolCard'),
+    t('csv.headerStoolAbnormal'),
+    t('csv.headerStoolColourLegacy'),
+    t('csv.headerWeightKg'),
+    t('csv.headerHeightCm'),
+    t('csv.headerHeadCm'),
+    t('csv.headerNote'),
   ];
 
   // ⚠️ '﻿' 是 UTF-8 BOM。少了它，Windows 的 Excel 開啟中文 CSV 會變亂碼。
@@ -143,6 +151,9 @@ function stamp(): string {
 /**
  * 寫進快取目錄再叫出系統分享選單（LINE、Gmail、Google Drive…）。
  * 檔名刻意用純 ASCII，避免 Android 各家檔案管理 App 對中文檔名的處理差異。
+ *
+ * ⚠️ 這裡兩個字串的 key 掛在 csv.* 前綴下只是因為 i18n 搬遷的批次分工，
+ *    但 exportJson() 與 exportCsv() 都會走到這個函式——改字時 JSON 那條路徑也會跟著變。
  */
 async function shareText(filename: string, content: string, mimeType: string): Promise<void> {
   const file = new File(Paths.cache, filename);
@@ -151,9 +162,12 @@ async function shareText(filename: string, content: string, mimeType: string): P
   file.write(content);
 
   if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('這台裝置不支援分享功能');
+    // ⚠️ 這句是【使用者看得到】的字，不是內部日誌：設定頁的 catch 直接把 e.message
+    //    丟進 Alert。所以要翻，而且錯誤訊息刻意不加句號（比照 history.deleteFailed）。
+    throw new Error(t('csv.shareUnsupported'));
   }
-  await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: '匯出寶寶日誌' });
+  // ⚠️ 只有分享選單的標題跟著語言走，檔名不翻——理由見上面的 ASCII 註解。
+  await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: t('csv.shareDialogTitle') });
 }
 
 export type { Baby, BabyEvent };

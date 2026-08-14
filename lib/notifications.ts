@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { LogBox, Platform } from 'react-native';
+import { getCurrentLang, t, type LangKey } from './i18n';
 
 /**
  * 靜音 expo-notifications 在 Expo Go 的固定抱怨。
@@ -50,19 +51,33 @@ Notifications.setNotificationHandler({
   }),
 });
 
-let channelReady = false;
+/**
+ * 上次建立頻道時用的語言；null = 這次執行還沒建過。
+ *
+ * ⚠️ 原本是 `let channelReady = false`，改成記【語言】是 i18n 逼出來的：頻道名稱不顯示在
+ *    APP 裡，而是顯示在【Android 系統設定 → 通知 → 分類】。用同一個 channel id 再呼叫一次
+ *    setNotificationChannelAsync 是【更新】既有頻道的名稱，不是多建一個，所以名稱本來是
+ *    追得上語言的 —— 但只記一個 boolean 的話，同一次執行期間只會建一次，在 APP 內切語言後
+ *    系統設定裡仍是舊語言，要到下次冷啟動才更新。記語言就能在切語言後的第一次排程順手改掉。
+ */
+let channelLang: LangKey | null = null;
 
 /**
  * Android 13+ 必須【先有通知頻道】才能請求權限，順序錯了權限對話框不會出現。
  */
 async function ensureChannel(): Promise<void> {
-  if (Platform.OS !== 'android' || channelReady) return;
+  if (Platform.OS !== 'android') return;
+  // ⚠️ 先把語言取出來存成區域變數再 await：await 期間使用者仍可能切語言，
+  //    若最後才讀一次 getCurrentLang() 會把新語言記成「已建立」，那次更新就永久漏掉。
+  const lang = getCurrentLang();
+  if (channelLang === lang) return;
   await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-    name: '親餵計時提醒',
+    name: t('notif.channelName'),
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
   });
-  channelReady = true;
+  // ⚠️ 成功之後才記；中間丟例外就維持原值，下次呼叫會再試一次。
+  channelLang = lang;
 }
 
 /** 回傳是否拿到權限。使用者拒絕過且不能再問時回 false。 */
@@ -82,6 +97,13 @@ export async function ensureNotificationPermission(): Promise<boolean> {
  *
  * 用【事件 id 當通知 id】，所以取消時不需要另外存一份對應關係 ——
  * 少一份狀態就少一個會不同步的地方。
+ *
+ * ⚠️ title/body 是在【排程當下】就組好字串交給 OS 存起來的。使用者排程之後才切語言，
+ *    這則【已排程】的通知不會跟著變，仍會用排程當下的語言送出來 —— 這是系統行為不是 bug，
+ *    而且實際影響很小：這則只排 60 分鐘，按下結束就會被 cancelTimerNotification 取消。
+ * ⚠️ 模組層級 t() 讀的 currentLang 要等 SettingsProvider 從資料庫讀出設定後才同步，
+ *    所以冷啟動後【立刻】按開始親餵的那個極短視窗內，排出去的通知可能還是預設的 zh-TW。
+ *    與 splash.* 兩個 key 的處境相同（見 lib/i18n.ts 的註解），可接受，不必為此加同步機制。
  */
 export async function scheduleNursingOverdue(
   eventId: string,
@@ -94,8 +116,18 @@ export async function scheduleNursingOverdue(
   await Notifications.scheduleNotificationAsync({
     identifier: eventId,
     content: {
-      title: '還在餵嗎？',
-      body: `${babyName} 的親餵已經 ${minutes} 分鐘了。如果已經結束，記得回 APP 按「結束」，時間才會正確。`,
+      // ⚠️ notif.overdueTitle 的值與 timer.nursingOverdue（首頁警示橫幅）完全相同，
+      //    只因命名空間分組才各留一份；哪天要改，兩個 key 必須一起改，
+      //    否則橫幅寫一種、通知寫另一種。
+      title: t('notif.overdueTitle'),
+      // ⚠️ 這裡刻意【不】用 plural()：{n} 來自 db/queries.ts 的常數 NURSING_OVERDUE_MIN = 60，
+      //    兩個呼叫端都直接傳這個常數，n === 1 走不到。為了一個到不了的分支把整段長句複製成
+      //    _one 版本，維護成本大於收益。哪天分鐘數變成可設定，再補 notif.overdueBody_one
+      //    並改成 t(plural(minutes, 'notif.overdueBody'), { name: babyName, n: minutes })。
+      // ⚠️ 同時哺餵時呼叫端會把兩個名字併成一個字串傳進 babyName，所以英文版寫成
+      //    「{name} — nursing has been running…」而不是「{name} has been nursing…」，
+      //    這樣單雙都成立、不會 has/have 對不上。
+      body: t('notif.overdueBody', { name: babyName, n: minutes }),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -130,8 +162,9 @@ export async function sendTestNotification(): Promise<boolean> {
   await Notifications.scheduleNotificationAsync({
     identifier: TEST_ID,
     content: {
-      title: '測試通知',
-      body: '你看到這則就表示鎖屏提醒會正常送到。親餵超時的提醒長得跟這個一樣。',
+      // ⚠️ 同樣是排程當下就把字串交給 OS，但這則只延遲幾秒，切語言的時間差在這裡不成問題。
+      title: t('notif.testTitle'),
+      body: t('notif.testBody'),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
